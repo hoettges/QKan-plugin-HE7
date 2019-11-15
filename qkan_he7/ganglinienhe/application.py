@@ -401,10 +401,10 @@ class Application:
                 if stop:
                     self.__log.info("Ergebnis-Datenbank-Auswahl wurde abgebrochen.")
                     return False
-                self.__result_db = QFileDialog.getOpenFileName(self.__dlg,
-                                                               u"Wählen Sie eine Simulations-Datenbank",
-                                                               self.__workspace,
-                                                               filter="IDBF (*.idbf);; Alle Dateien (*.*)")
+                self.__result_db, _ = QFileDialog.getOpenFileName(self.__dlg,
+                                                                  u"Wählen Sie eine Simulations-Datenbank",
+                                                                  self.__workspace,
+                                                                  filter="IDBF (*.idbf);; Alle Dateien (*.*)")
             self.__dlg.label_dbname.setText(self.__result_db)
             self.__log.info(u"Ergebnis-Datenbank wurde ausgewählt")
             self.__log.debug(u"Ergebnis-Datenbank liegt in {}".format(self.__result_db))
@@ -561,9 +561,9 @@ class Application:
                 if stop:
                     self.__log.info("Ergebnis-Datenbank-Auswahl wurde abgebrochen.")
                     return False
-                self.__result_db = QFileDialog.getOpenFileName(self.__dlg,
-                                                               u"Wählen Sie eine Simulations-Datenbank",
-                                                               filter="IDBF (*.idbf);; Alle Dateien (*.*)")
+                self.__result_db, _ = QFileDialog.getOpenFileName(self.__dlg,
+                                                                  u"Wählen Sie eine Simulations-Datenbank",
+                                                                  filter="IDBF (*.idbf);; Alle Dateien (*.*)")
             self.__log.info(u"Ergebnis-Datenbank wurde ausgewählt")
             self.__log.debug(u"Ergebnis-Datenbank liegt in {}".format(self.__result_db))
             selected_layers = self.__iface.legendInterface().selectedLayers()

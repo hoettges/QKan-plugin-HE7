@@ -263,10 +263,10 @@ class ImportFromHE:
     def selectFile_HeErgDB(self):
         """Datenbankverbindung zur HE-Ergebnisdatenbank (Firebird) auswaehlen"""
 
-        filename = QFileDialog.getOpenFileName(self.dlg_lz,
-                                               u"Dateinamen der zu lesenden HE-Ergebnisdatenbank auswählen",
-                                               self.default_dir,
-                                               u"*.idbf")
+        filename, _ = QFileDialog.getOpenFileName(self.dlg_lz,
+                                                  u"Dateinamen der zu lesenden HE-Ergebnisdatenbank auswählen",
+                                                  self.default_dir,
+                                                  u"*.idbf")
         if os.path.dirname(filename) != '':
             os.chdir(os.path.dirname(filename))
         self.dlg_lz.tf_heDB.setText(filename)
