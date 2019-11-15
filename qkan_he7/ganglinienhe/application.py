@@ -188,8 +188,6 @@ class Application:
         else:
             standard_buttons = (QMessageBox.Cancel | QMessageBox.Open)
             default_button = QMessageBox.Open
-        title = title.decode("utf-8")
-        _string = _string.decode("utf-8")
         msg = QMessageBox()
         msg.setStandardButtons(standard_buttons)
         msg.setDefaultButton(default_button)
