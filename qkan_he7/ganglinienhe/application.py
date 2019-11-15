@@ -27,6 +27,7 @@ import os.path
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QGridLayout, QLabel
+from qgis.core import Qgis
 
 from qkan.database.fbfunc import FBConnection
 from qkan.database.navigation import Navigator
@@ -455,8 +456,8 @@ class Application:
             features += [f[1] for f in l.selectedFeatures()]
         features = list(set(features))
         self.__log.debug(u"{} wurde ausgewählt.".format(features))
-        self.__iface.messageBar().pushMessage("Navigation", "Route wird berechnet...", self.__iface.messageBar().INFO,
-                                              60)
+        self.__iface.messageBar().pushMessage("Navigation", "Route wird berechnet...", level=Qgis.Info,
+                                              duration=60)
         navigator = MyNavigator(self.__spatialite)
         if layer_type == LayerType.Haltung:
             route = navigator.calculate_route_haltung(features)
