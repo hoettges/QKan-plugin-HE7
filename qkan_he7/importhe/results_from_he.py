@@ -139,7 +139,7 @@ def importResults(database_HE, database_QKan, qml_choice, qmlfileResults, epsg=2
     dbQK.commit()
 
     # Einfügen der Ergebnistabelle in die Layerliste, wenn nicht schon geladen
-    layers = iface.legendInterface().layers()
+    layers = [layer for layer in QgsProject.instance().mapLayers().values()]
     if u'Ergebnisse_LZ' not in [lay.name() for lay in layers]:
         uri = QgsDataSourceUri()
         uri.setDatabase(database_QKan)

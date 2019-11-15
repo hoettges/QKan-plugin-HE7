@@ -26,15 +26,15 @@ import os.path
 
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QGridLayout, QLabel
-from qgis.core import Qgis
+from qgis.PyQt.QtWidgets import QFileDialog, QGridLayout, QLabel, QMessageBox
+from qgis.core import Qgis, QgsProject
 
 from qkan.database.fbfunc import FBConnection
 from qkan.database.navigation import Navigator
 from qkan_he7 import QKan
 # noinspection PyUnresolvedReferences
 from . import plotter, resources, slider as s
-from .Enums import SliderMode, Type, LayerType
+from .Enums import LayerType, SliderMode, Type
 from .application_dialog import LaengsschnittDialog
 from .ganglinie import Ganglinie
 
@@ -182,7 +182,6 @@ class Application:
         :rtype: bool
         """
         if _type == Type.Error:
-
             standard_buttons = QMessageBox.Ok
             default_button = QMessageBox.Ok
         else:
@@ -565,7 +564,7 @@ class Application:
                                                                   filter="IDBF (*.idbf);; Alle Dateien (*.*)")
             self.__log.info(u"Ergebnis-Datenbank wurde ausgewählt")
             self.__log.debug(u"Ergebnis-Datenbank liegt in {}".format(self.__result_db))
-            selected_layers = self.__iface.legendInterface().selectedLayers()
+            selected_layers = self.__iface.layerTreeView().selectedLayers()
             if len(selected_layers) == 0:
                 self.__log.critical(u"Es wurde kein Layer ausgewählt!")
                 self.__iface.messageBar().pushCritical("Fehler", u"Wählen Sie zunächst ein Layer")
@@ -655,7 +654,7 @@ class Application:
         else:
             self.__log.warning("Initiierung abgebrochen. Ganglinien-Tool wird beendet.")
             return
-        _layers = self.__iface.legendInterface().layers()
+        _layers = [layer for layer in QgsProject.instance().mapLayers().values()]
         important_layers = []
         for l in _layers:
             if self.__layer_to_type(l) != -1:
