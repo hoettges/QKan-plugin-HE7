@@ -576,6 +576,8 @@ class ExportToHE:
             autokorrektur = self.dlg.cb_autokorrektur.isChecked()
             mit_verschneidung = self.dlg.cb_regardTezg.isChecked()
 
+            exportFlaechenHE8 = self.dlg.cb_copyFlaechenHE8.isChecked()
+
             check_export = {}
             check_export['export_schaechte'] = self.dlg.cb_export_schaechte.isChecked()
             check_export['export_auslaesse'] = self.dlg.cb_export_auslaesse.isChecked()
@@ -627,5 +629,5 @@ class ExportToHE:
             QKan.save_config()
 
             exportKanaldaten(self.iface, database_HE, dbtemplate_HE, self.dbQK, liste_teilgebiete, 
-                             autokorrektur, fangradius, mindestflaeche, mit_verschneidung, 
+                             autokorrektur, fangradius, mindestflaeche, mit_verschneidung, exportFlaechenHE8, 
                              datenbanktyp, check_export)
