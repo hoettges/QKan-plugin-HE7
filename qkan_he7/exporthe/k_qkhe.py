@@ -1417,121 +1417,65 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
             # Einfügen aller verschnittenen Flächen in Tabelle "flaechen_he8", zusammengefasst
             # nach Haltungen, Regenschreiber, etc. 
 
-            if check_export['combine_flaechenrw']:
                 sql = """
-                  WITH flintersect AS (
-                    SELECT lf.flnam AS flnam, lf.pk AS pl, lf.haltnam AS haltnam, fl.neigkl AS neigkl, at.he_nr AS abflusstyp, 
-                      CASE WHEN ap.bodenklasse IS NULL THEN 0 ELSE 1 END AS typbef, 
-                      lf.speicherzahl AS speicherzahl, lf.speicherkonst AS speicherkonst, 
-                      lf.fliesszeitflaeche AS fliesszeitflaeche, lf.fliesszeitkanal AS fliesszeitkanal,
-                      fl.regenschreiber AS regenschreiber,
-                      fl.abflussparameter AS abflussparameter, fl.createdat AS createdat,
-                      fl.kommentar AS kommentar, 
-                      CASE WHEN {case_verschneidung} THEN fl.geom 
-                      ELSE CastToMultiPolygon(CollectionExtract(intersection(fl.geom,tg.geom),3)) END AS geom
-                    FROM linkfl AS lf
-                    INNER JOIN flaechen AS fl
-                    ON lf.flnam = fl.flnam
-                    LEFT JOIN abflusstypen AS at
-                    ON lf.abflusstyp = at.abflusstyp
-                    LEFT JOIN abflussparameter AS ap
-                    ON fl.abflussparameter = ap.apnam{join_verschneidung})
-                  INSERT INTO flaechen_he8 (
-                    Name, Haltung, Groesse, Regenschreiber, 
-                    BerechnungSpeicherkonstante, Typ, AnzahlSpeicher,
-                    Speicherkonstante, Schwerpunktlaufzeit,
-                    FliesszeitOberflaeche, LaengsteFliesszeitKanal,
-                    Parametersatz, Neigungsklasse, ZuordnUnabhEZG,
-                    LastModified,
-                    Kommentar, Geometry)
+                WITH flintersect AS (
                   SELECT 
-                    substr(printf('%s-%d', fi.flnam, fi.pl),1,30) AS Name, 
-                    ha.haltnam AS Haltung, 
-                    sum(area(fi.geom)/10000) AS Groesse, 
-                    fi.regenschreiber AS Regenschreiber,
-                    fi.abflusstyp AS BerechnungSpeicherkonstante, 
-                    fi.typbef AS Typ, 
-                    fi.speicherzahl AS AnzahlSpeicher, 
-                    avg(fi.speicherkonst) AS Speicherkonstante,
-                    max(fi.fliesszeitflaeche) AS Schwerpunktlaufzeit, 
-                    max(fi.fliesszeitflaeche) AS FliesszeitOberflaeche, 
-                    max(fi.fliesszeitkanal) AS LaengsteFliesszeitKanal,
-                    fi.abflussparameter AS Parametersatz, 
-                    fi.neigkl AS Neigungsklasse,
-                    0 AS ZuordnUnabhEZG, 
-                    max(fi.createdat) AS LastModified,
-                    max(fi.kommentar) AS Kommentar, 
-                    ST_Union(MakeValid(fi.geom)) AS Geometry
-                  FROM flintersect AS fi
+                    substr(printf('%s-%d', fl.flnam, lf.pk),1,30) AS flnam, 
+                    ha.haltnam AS haltnam, fl.neigkl AS neigkl,
+                    at.he_nr AS abflusstyp, 
+                    CASE WHEN ap.bodenklasse IS NULL THEN 0 ELSE 1 END AS typbef, 
+                    lf.speicherzahl AS speicherzahl, lf.speicherkonst AS speicherkonst,
+                    lf.fliesszeitflaeche AS fliesszeitflaeche, lf.fliesszeitkanal AS fliesszeitkanal,
+                    CASE WHEN {case_verschneidung} THEN area(fl.geom)/10000 
+                    ELSE area(CastToMultiPolygon(CollectionExtract(intersection(fl.geom,
+                          tg.geom),3)))/10000 
+                    END AS flaeche, 
+                    fl.regenschreiber AS regenschreiber, ft.he_nr AS flaechentypnr, 
+                    fl.abflussparameter AS abflussparameter, fl.createdat AS createdat,
+                    fl.kommentar AS kommentar,
+                    CASE WHEN {case_verschneidung} THEN fl.geom
+                    ELSE CastToMultiPolygon(CollectionExtract(intersection(fl.geom,tg.geom),3)) 
+                    END AS geom
+                  FROM linkfl AS lf
+                  INNER JOIN flaechen AS fl
+                  ON lf.flnam = fl.flnam
                   INNER JOIN haltungen AS ha
-                  ON fi.haltnam = ha.haltnam
-                  WHERE area(fi.geom) > {mindestflaeche}{auswahl_c}
-                  GROUP BY ha.haltnam, fi.abflussparameter, fi.regenschreiber, fi.speicherzahl, 
-                    fi.abflusstyp, fi.neigkl""".format(mindestflaeche=mindestflaeche, auswahl_c=auswahl_c, 
+                  ON lf.haltnam = ha.haltnam
+                  LEFT JOIN abflusstypen AS at
+                  ON lf.abflusstyp = at.abflusstyp
+                  LEFT JOIN abflussparameter AS ap
+                  ON fl.abflussparameter = ap.apnam
+                  LEFT JOIN flaechentypen AS ft
+                  ON ap.flaechentyp = ft.bezeichnung{join_verschneidung}{auswahl_a})
+                INSERT INTO flaechen_he8 (
+                  Name, Haltung, Groesse, Regenschreiber, Flaechentyp, 
+                  BerechnungSpeicherkonstante, Typ, AnzahlSpeicher,
+                  Speicherkonstante, 
+                  Schwerpunktlaufzeit,
+                  FliesszeitOberflaeche, LaengsteFliesszeitKanal,
+                  Parametersatz, Neigungsklasse, ZuordnUnabhEZG, 
+                  IstPolygonalflaeche, ZuordnungGesperrt, 
+                  LastModified,
+                  Kommentar, 
+                  Geometry)
+                SELECT 
+                  flnam AS Name, haltnam AS Haltung, flaeche AS Groesse, regenschreiber AS Regenschreiber, 
+                  flaechentypnr AS Flaechentyp, 
+                  abflusstyp AS BerechnungSpeicherkonstante, typbef AS Typ, speicherzahl AS AnzahlSpeicher, 
+                  speicherkonst AS Speicherkonstante, 
+                  coalesce(fliesszeitflaeche, 0.0) AS Schwerpunktlaufzeit, 
+                  fliesszeitflaeche AS FliesszeitOberflaeche, fliesszeitkanal AS LaengsteFliesszeitKanal, 
+                  abflussparameter AS Parametersatz, neigkl AS Neigungsklasse, 
+                  1 AS IstPolygonalflaeche, 1 AS ZuordnungGesperrt, 0 AS ZuordnUnabhEZG, 
+                  strftime('%Y-%m-%d %H:%M:%S', coalesce(createdat, 'now')) AS lastmodified, 
+                  kommentar AS Kommentar, 
+                  SetSrid(geom, -1) AS Geometry
+                FROM flintersect AS fi
+                WHERE flaeche*10000 > {mindestflaeche}""".format(mindestflaeche=mindestflaeche, auswahl_a=auswahl_a, 
                                                         case_verschneidung=case_verschneidung, 
                                                         join_verschneidung=join_verschneidung)
-                logger.debug('combine_flaechenrw = True')
-                logger.debug('Abfrage zum Export der Flächendaten nach HE8: \n{}'.format(sql))
-            else:
-                sql = """
-                  WITH flintersect AS (
-                    SELECT substr(printf('%s-%d', fl.flnam, lf.pk),1,30) AS flnam, 
-                      ha.haltnam AS haltnam, fl.neigkl AS neigkl,
-                      at.he_nr AS abflusstyp, 
-                      CASE WHEN ap.bodenklasse IS NULL THEN 0 ELSE 1 END AS typbef, 
-                      lf.speicherzahl AS speicherzahl, lf.speicherkonst AS speicherkonst,
-                      lf.fliesszeitflaeche AS fliesszeitflaeche, lf.fliesszeitkanal AS fliesszeitkanal,
-                      CASE WHEN {case_verschneidung} THEN area(fl.geom)/10000 
-                      ELSE area(CastToMultiPolygon(CollectionExtract(intersection(fl.geom,
-                            tg.geom),3)))/10000 
-                      END AS flaeche, 
-                      fl.regenschreiber AS regenschreiber,
-                      fl.abflussparameter AS abflussparameter, fl.createdat AS createdat,
-                      fl.kommentar AS kommentar,
-                      CASE WHEN {case_verschneidung} THEN fl.geom
-                      ELSE CastToMultiPolygon(CollectionExtract(intersection(fl.geom,tg.geom),3)) 
-                      END AS geom
-                    FROM linkfl AS lf
-                    INNER JOIN flaechen AS fl
-                    ON lf.flnam = fl.flnam
-                    INNER JOIN haltungen AS ha
-                    ON lf.haltnam = ha.haltnam
-                    LEFT JOIN abflusstypen AS at
-                    ON lf.abflusstyp = at.abflusstyp
-                    LEFT JOIN abflussparameter AS ap
-                    ON fl.abflussparameter = ap.apnam{join_verschneidung}{auswahl_a})
-                  INSERT INTO flaechen_he8 (
-                    Name, Haltung, Groesse, Regenschreiber, 
-                    BerechnungSpeicherkonstante, Typ, AnzahlSpeicher,
-                    Speicherkonstante, Schwerpunktlaufzeit,
-                    FliesszeitOberflaeche, LaengsteFliesszeitKanal,
-                    Parametersatz, Neigungsklasse, ZuordnUnabhEZG,
-                    LastModified,
-                    Kommentar, Geometry)
-                  SELECT 
-                    flnam AS Name, 
-                    haltnam AS Haltung, 
-                    flaeche AS Groesse, 
-                    regenschreiber AS Regenschreiber, 
-                    abflusstyp AS BerechnungSpeicherkonstante, 
-                    typbef AS Typ, 
-                    speicherzahl AS AnzahlSpeicher, 
-                    speicherkonst AS Speicherkonstante, 
-                    fliesszeitflaeche AS Schwerpunktlaufzeit, 
-                    fliesszeitflaeche AS FliesszeitOberflaeche, 
-                    fliesszeitkanal AS LaengsteFliesszeitKanal, 
-                    abflussparameter AS Parametersatz,
-                    neigkl AS Neigungsklasse, 
-                    0 AS ZuordnUnabhEZG, 
-                    createdat AS LastModified, 
-                    kommentar AS Kommentar, 
-                    geom AS Geometry
-                  FROM flintersect AS fi
-                  WHERE flaeche*10000 > {mindestflaeche}""".format(mindestflaeche=mindestflaeche, auswahl_a=auswahl_a, 
-                                                        case_verschneidung=case_verschneidung, 
-                                                        join_verschneidung=join_verschneidung)
-                logger.debug('combine_flaechenrw = False')
-                logger.debug('Abfrage zum Export der Flächendaten nach HE8: \n{}'.format(sql))
+
+            logger.debug('Abfrage zum Export der Flächendaten nach HE8: \n{}'.format(sql))
 
             if not dbQK.sql(sql, 'dbQK: k_qkhe.export_flaechenhe8'):
                 del dbHE
