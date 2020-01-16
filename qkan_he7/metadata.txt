@@ -10,7 +10,7 @@
 name=QKan Hystem-Extran 7
 qgisMinimumVersion=3.4.1
 description=Hystem-Extran-Erweiterung für QKan
-version=3.0.6
+version=3.0.7
 author=Jörg Höttges, Leon Ochsenfeld, Yannick Linke/FH Aachen
 email=hoettges@fh-aachen.de
 
