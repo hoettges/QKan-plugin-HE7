@@ -1,60 +1,36 @@
 # -*- coding: utf-8 -*-
 import logging
-import os
-import tempfile
-from datetime import datetime as dt
 
 from qgis.utils import unloadPlugin
 
 # Aufsetzen des Logging-Systems
-logger = logging.getLogger('QKan.qkan_he7.init')
-
-# if not logger.handlers:
-    # formatter = logging.Formatter('%(asctime)s %(name)s-%(levelname)s: %(message)s')
-
-    # # Consolen-Handler
-    # ch = logging.StreamHandler()
-    # ch.setFormatter(formatter)
-    # logger.addHandler(ch)
-
-    # # File-Handler
-    # dnam = dt.today().strftime("%Y%m%d")
-    # fnam = os.path.join(tempfile.gettempdir(), 'QKan{}.log'.format(dnam))
-    # fh = logging.FileHandler(fnam)
-    # fh.setFormatter(formatter)
-    # logger.addHandler(fh)
-
-    # # Warnlevel des Logging-Systems setzten
-    # logger.setLevel(logging.DEBUG)
-
-    # # Warnlever der Logging-Protokolle setzen
-    # ch.setLevel(logging.ERROR)
-    # fh.setLevel(logging.DEBUG)
-
-    # logger.info('Initialisierung logger erfolgreich!')
-# else:
-    # logger.info('Logger ist schon initialisiert')
+logger = logging.getLogger("QKan.qkan_he7.init")
 
 
 def classFactory(iface):  # pylint: disable=invalid-name
     try:
         from qkan import QKan as MainQKan
+
         if not MainQKan.instance:  # QKan isn't loaded
-            raise Exception('The QKan main plugin has to be loaded before loading this extension.')
+            raise Exception(
+                "The QKan main plugin has to be loaded before loading this extension."
+            )
 
         qkan = QKan(iface, MainQKan.instance)
         return qkan
     except ImportError:
         import traceback
+
         traceback.print_exc()
         unloadPlugin(__name__)
-        raise Exception('The QKan main plugin has to be installed for this extension to work.')
+        raise Exception(
+            "The QKan main plugin has to be installed for this extension to work."
+        )
 
 
 class QKan:
     instance = None
     name = __name__
-    config = {}
 
     def __init__(self, iface, main):
         self.main = main
@@ -62,13 +38,14 @@ class QKan:
 
         QKan.config = main.config
 
-        from .importhe import application as importhe
-        from .exporthe import application as exporthe
-        from .ganglinienhe import application as ganglinienhe
+        from .importhe import ImportFromHE
+        from .exporthe import ExportToHE
+        from .ganglinienhe import GanglinienHE
+
         self.plugins = [
-            importhe.ImportFromHE(iface),
-            exporthe.ExportToHE(iface),
-            ganglinienhe.Application(iface)
+            ImportFromHE(iface),
+            ExportToHE(iface),
+            GanglinienHE(iface),
         ]
         QKan.instance = self
 
@@ -93,9 +70,28 @@ class QKan:
             self.main.menu.removeAction(action)
             self.main.toolbar.removeAction(action)
 
-    def add_action(self, icon_path, text, callback, enabled_flag=True, add_to_menu=True, add_to_toolbar=True,
-                   status_tip=None, whats_this=None, parent=None):
-        action = self.main.add_action(icon_path, text, callback, enabled_flag, add_to_menu, add_to_toolbar, status_tip,
-                                      whats_this, parent)
+    def add_action(
+        self,
+        icon_path,
+        text,
+        callback,
+        enabled_flag=True,
+        add_to_menu=True,
+        add_to_toolbar=True,
+        status_tip=None,
+        whats_this=None,
+        parent=None,
+    ):
+        action = self.main.add_action(
+            icon_path,
+            text,
+            callback,
+            enabled_flag,
+            add_to_menu,
+            add_to_toolbar,
+            status_tip,
+            whats_this,
+            parent,
+        )
         self.actions.append(action)
         return action
