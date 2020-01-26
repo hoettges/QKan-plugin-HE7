@@ -44,7 +44,7 @@ main_logger = logging.getLogger("QKan.ganglinienhe.application.main")
 main_logger.info("Application-Modul gestartet")
 
 
-class Application:
+class GanglinienHE:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
