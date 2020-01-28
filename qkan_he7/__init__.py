@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import logging
 
+import qgis
 from qgis.utils import unloadPlugin
 
 # Aufsetzen des Logging-Systems
 logger = logging.getLogger("QKan.qkan_he7.init")
 
 
-def classFactory(iface):  # pylint: disable=invalid-name
+def classFactory(iface: qgis.gui.QgisInterface):  # pylint: disable=invalid-name
     try:
         from qkan import QKan as MainQKan
 
@@ -32,8 +33,9 @@ class QKan:
     instance = None
     name = __name__
 
-    def __init__(self, iface, main):
-        self.main = main
+    def __init__(self, iface: qgis.gui.QgisInterface, main):
+        # noinspection PyUnresolvedReferences
+        self.main: "MainQKan.QKan" = main
         self.actions = []
 
         QKan.config = main.config

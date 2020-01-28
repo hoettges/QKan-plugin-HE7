@@ -29,9 +29,10 @@ __copyright__ = '(C) 2016, Joerg Hoettges'
 import logging
 import os
 
-from qgis.core import QgsVectorLayer, QgsDataSourceUri, QgsProject
-from qgis.utils import iface, pluginDirectory
+from qgis.core import QgsDataSourceUri, QgsProject, QgsVectorLayer
+from qgis.utils import pluginDirectory
 
+from qkan import enums
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_utils import fehlermeldung
@@ -149,21 +150,21 @@ def importResults(database_HE, database_QKan, qml_choice, qmlfileResults, epsg=2
 
         # Stilvorlage nach Benutzerwahl laden
         templatepath = os.path.join(pluginDirectory('qkan'), u"templates")
-        if qml_choice == 'uebh':
+        if qml_choice == enums.QmlChoice.UEBH:
             template = os.path.join(templatepath, u"Überstauhäufigkeit.qml")
             try:
                 vlayer.loadNamedStyle(template)
             except:
                 fehlermeldung(u"Fehler in QKan_Results_from_HE",
                               u'Stildatei "Überstauhäufigkeit.qml" wurde nicht gefunden!\nAbbruch!')
-        elif qml_choice == 'uebvol':
+        elif qml_choice == enums.QmlChoice.UEBVOL:
             template = os.path.join(templatepath, u"Überstauvolumen.qml")
             try:
                 vlayer.loadNamedStyle(template)
             except:
                 fehlermeldung(u"Fehler in QKan_Results_from_HE",
                               u'Stildatei "Überstauvolumen.qml" wurde nicht gefunden!\nAbbruch!')
-        elif qml_choice == 'userqml':
+        elif qml_choice == enums.QmlChoice.USERQML:
             try:
                 vlayer.loadNamedStyle(qmlfileResults)
             except:

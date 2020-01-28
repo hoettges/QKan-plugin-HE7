@@ -19,19 +19,17 @@
   (at your option) any later version.                                  
 
 """
-import json
 import logging
 import os.path
-import site
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtWidgets import QFileDialog, QListWidgetItem
-from qgis.core import QgsProject
-from qgis.utils import iface, pluginDirectory
+from qgis.core import Qgis, QgsProject
+from qgis.utils import pluginDirectory
 
-from qkan.database.dbfunc import DBConnection
-from qkan.database.qkan_utils import get_database_QKan, get_editable_layers, fehlermeldung
 from qkan import QKan
+from qkan.database.dbfunc import DBConnection
+from qkan.database.qkan_utils import fehlermeldung, get_database_QKan, get_editable_layers
 # noinspection PyUnresolvedReferences
 from . import resources
 from .application_dialog import ExportToHEDialog
@@ -78,33 +76,7 @@ class ExportToHE:
         # Create the dialog (after translation) and keep reference
         self.dlg = ExportToHEDialog()
 
-        # Anfang Eigene Funktionen -------------------------------------------------
-        # (jh, 08.02.2017)
-
         logger.info('\n\nQKan_ExportHE initialisiert...')
-
-        # --------------------------------------------------------------------------
-        # Pfad zum Arbeitsverzeichnis sicherstellen
-        # wordir = os.path.join(site.getuserbase(), 'qkan')
-
-        # if not os.path.isdir(wordir):
-            # os.makedirs(wordir)
-
-        # --------------------------------------------------------------------------
-        # Konfigurationsdatei qkan.json lesen
-        #
-
-        # self.configfil = os.path.join(wordir, 'qkan.json')
-        # if os.path.exists(self.configfil):
-            # with open(self.configfil, 'r') as fileconfig:
-                # self.config = json.loads(fileconfig.read())
-        # else:
-            # self.config['database_HE'] = ''
-            # # Vorlagedatenbank nur für den Fall, dass der Anwender keine eigene Vorlage erstellen will
-            # self.config['dbtemplate_HE'] = os.path.join(os.path.dirname(__file__), "templates", "itwh.idbf")
-            # self.config['database_QKan'] = ''
-            # with open(self.configfil, 'w') as fileconfig:
-                # fileconfig.write(json.dumps(self.config))
 
         # Standard für Suchverzeichnis festlegen
         project = QgsProject.instance()
@@ -352,55 +324,33 @@ class ExportToHE:
         :param listWidget: String for translation.
         :type listWidget: QListWidget
 
-        :returns: Tuple containing selected teilgebiete
-        :rtype: tuple
+        :returns: List containing selected teilgebiete
+        :rtype: list
         """
-        items = listWidget.selectedItems()
-        liste = []
-        for elem in items:
-            liste.append(elem.text())
-        return liste
+        return [_.text() for _ in listWidget.selectedItems()]
 
     # Ende Eigene Funktionen ---------------------------------------------------
 
     def run(self):
         """Run method that performs all the real work"""
 
-        if 'database_QKan' in QKan.config:
-            database_QKan = QKan.config['database_QKan']
-        else:
-            database_QKan = ''
-        self.dlg.tf_QKanDB.setText(database_QKan)
+        self.dlg.tf_QKanDB.setText(QKan.config.database.qkan)
         self.dlg.pb_selectQKanDB.clicked.connect(self.selectFile_QKanDB)
 
-        if 'database_HE' in QKan.config:
-            database_HE = QKan.config['database_HE']
-        else:
-            database_HE = ''
-        self.dlg.tf_heDB_dest.setText(database_HE)
+        self.dlg.tf_heDB_dest.setText(QKan.config.he.database)
         self.dlg.pb_selectHeDB_dest.clicked.connect(self.selectFile_HeDB_dest)
 
-        if 'dbtemplate_HE' in QKan.config:
-            dbtemplate_HE = QKan.config['dbtemplate_HE']
-        else:
-            dbtemplate_HE = ''
-        self.dlg.tf_heDB_template.setText(dbtemplate_HE)
+        self.dlg.tf_heDB_template.setText(QKan.config.he.template)
         self.dlg.pb_selectHeDB_template.clicked.connect(self.selectFile_HeDB_template)
         self.dlg.pb_selectHeDB_emptytemplate.clicked.connect(self.selectFile_HeDB_emptytemplate)
-
-        if 'datenbanktyp' in QKan.config:
-            datenbanktyp = QKan.config['datenbanktyp']
-        else:
-            datenbanktyp = 'spatialite'
-            pass  # Es gibt noch keine Wahlmöglichkeit
 
         # Auswahl der zu exportierenden Tabellen ----------------------------------------------
 
         # Eigene Funktion für die zahlreichen Checkboxen
 
         def cb_set(name, cbox, default):
-            if name in QKan.config:
-                checked = QKan.config[name]
+            if hasattr(QKan.config.check_export, name):
+                checked = getattr(QKan.config.check_export, name)
             else:
                 checked = default
             cbox.setChecked(checked)
@@ -451,8 +401,6 @@ class ExportToHE:
         # Wenn dies nicht der Fall ist, wird die Quelldatenbank aus der
         # json-Datei übernommen.
 
-        database_QKan = ''
-
         database_QKan, epsg = get_database_QKan()
         if not database_QKan:
             fehlermeldung(u"Fehler in k_link", u"database_QKan konnte nicht aus den Layern ermittelt werden. Abbruch!")
@@ -465,8 +413,8 @@ class ExportToHE:
         # Datenbankverbindung für Abfragen
         self.dbQK = DBConnection(dbname=database_QKan)  # Datenbankobjekt der QKan-Datenbank zum Lesen
         if not self.dbQK.connected:
-            logger.error(u"Fehler in exportdyna.application:\n",
-                         u'QKan-Datenbank {:s} wurde nicht gefunden oder war nicht aktuell!\nAbbruch!'.format(
+            logger.error("Fehler in exportdyna.application:\n"
+                         'QKan-Datenbank {:s} wurde nicht gefunden oder war nicht aktuell!\nAbbruch!'.format(
                              database_QKan))
             return None
 
@@ -501,9 +449,7 @@ class ExportToHE:
         # Anlegen der Tabelle zur Auswahl der Teilgebiete
 
         # Zunächst wird die Liste der beim letzten Mal gewählten Teilgebiete aus config gelesen
-        liste_teilgebiete = []
-        if 'liste_teilgebiete' in QKan.config:
-            liste_teilgebiete = QKan.config['liste_teilgebiete']
+        liste_teilgebiete = QKan.config.selections.teilgebiete
 
         # Abfragen der Tabelle teilgebiete nach Teilgebieten
         sql = 'SELECT "tgnam" FROM "teilgebiete" GROUP BY "tgnam"'
@@ -523,37 +469,13 @@ class ExportToHE:
                 # self.dlg.lw_teilgebiete.setCurrentRow(0)
 
         # Ereignis bei Auswahländerung in Liste Teilgebiete
-
         self.countselection()
 
         # Autokorrektur
-
-        if 'autokorrektur' in QKan.config:
-            autokorrektur = QKan.config['autokorrektur']
-        else:
-            autokorrektur = True
-        self.dlg.cb_autokorrektur.setChecked(autokorrektur)
-
-        # Festlegung des Fangradius
-        # Kann über Menü "Optionen" eingegeben werden
-        if 'fangradius' in QKan.config:
-            fangradius = QKan.config['fangradius']
-        else:
-            fangradius = u'0.1'
+        self.dlg.cb_autokorrektur.setChecked(QKan.config.autokorrektur)
 
         # Haltungsflächen (tezg) berücksichtigen
-        if 'mit_verschneidung' in QKan.config:
-            mit_verschneidung = QKan.config['mit_verschneidung']
-        else:
-            mit_verschneidung = True
-        self.dlg.cb_regardTezg.setChecked(mit_verschneidung)
-
-        # Mindestflächengröße
-        # Kann über Menü "Optionen" eingegeben werden
-        if 'mindestflaeche' in QKan.config:
-            mindestflaeche = QKan.config['mindestflaeche']
-        else:
-            mindestflaeche = u'0.5'
+        self.dlg.cb_regardTezg.setChecked(QKan.config.mit_verschneidung)
 
         self.countselection()
 
@@ -567,68 +489,65 @@ class ExportToHE:
         if result:
 
             # Abrufen der ausgewählten Elemente in beiden Listen
-            liste_teilgebiete = self.listselecteditems(self.dlg.lw_teilgebiete)
+            liste_teilgebiete: list = list(self.listselecteditems(self.dlg.lw_teilgebiete))
 
             # Eingaben aus Formular übernehmen
-            database_QKan = self.dlg.tf_QKanDB.text()
-            database_HE = self.dlg.tf_heDB_dest.text()
-            dbtemplate_HE = self.dlg.tf_heDB_template.text()
+            database_QKan: str = self.dlg.tf_QKanDB.text()
+            database_HE: str = self.dlg.tf_heDB_dest.text()
+            dbtemplate_HE: str = self.dlg.tf_heDB_template.text()
             datenbanktyp = 'spatialite'
-            autokorrektur = self.dlg.cb_autokorrektur.isChecked()
-            mit_verschneidung = self.dlg.cb_regardTezg.isChecked()
+            autokorrektur: bool = self.dlg.cb_autokorrektur.isChecked()
+            mit_verschneidung: bool = self.dlg.cb_regardTezg.isChecked()
 
-            exportFlaechenHE8 = self.dlg.cb_copyFlaechenHE8.isChecked()
+            exportFlaechenHE8: bool = self.dlg.cb_copyFlaechenHE8.isChecked()
 
-            check_export = {}
-            check_export['export_schaechte'] = self.dlg.cb_export_schaechte.isChecked()
-            check_export['export_auslaesse'] = self.dlg.cb_export_auslaesse.isChecked()
-            check_export['export_speicher'] = self.dlg.cb_export_speicher.isChecked()
-            check_export['export_haltungen'] = self.dlg.cb_export_haltungen.isChecked()
-            check_export['export_pumpen'] = self.dlg.cb_export_pumpen.isChecked()
-            check_export['export_wehre'] = self.dlg.cb_export_wehre.isChecked()
-            check_export['export_flaechenrw'] = self.dlg.cb_export_flaechenrw.isChecked()
-            check_export['export_einleitdirekt'] = self.dlg.cb_export_einleitdirekt.isChecked()
-            check_export['export_aussengebiete'] = self.dlg.cb_export_aussengebiete.isChecked()
-            check_export['export_abflussparameter'] = self.dlg.cb_export_abflussparameter.isChecked()
-            check_export['export_regenschreiber'] = self.dlg.cb_export_regenschreiber.isChecked()
-            check_export['export_rohrprofile'] = self.dlg.cb_export_rohrprofile.isChecked()
-            check_export['export_speicherkennlinien'] = self.dlg.cb_export_speicherkennlinien.isChecked()
-            check_export['export_bodenklassen'] = self.dlg.cb_export_bodenklassen.isChecked()
-
-            check_export['modify_schaechte'] = self.dlg.cb_modify_schaechte.isChecked()
-            check_export['modify_auslaesse'] = self.dlg.cb_modify_auslaesse.isChecked()
-            check_export['modify_speicher'] = self.dlg.cb_modify_speicher.isChecked()
-            check_export['modify_haltungen'] = self.dlg.cb_modify_haltungen.isChecked()
-            check_export['modify_pumpen'] = self.dlg.cb_modify_pumpen.isChecked()
-            check_export['modify_wehre'] = self.dlg.cb_modify_wehre.isChecked()
-            check_export['modify_flaechenrw'] = self.dlg.cb_modify_flaechenrw.isChecked()
-            check_export['modify_einleitdirekt'] = self.dlg.cb_modify_einleitdirekt.isChecked()
-            check_export['modify_aussengebiete'] = self.dlg.cb_modify_aussengebiete.isChecked()
-            check_export['modify_abflussparameter'] = self.dlg.cb_modify_abflussparameter.isChecked()
-            check_export['modify_regenschreiber'] = self.dlg.cb_modify_regenschreiber.isChecked()
-            check_export['modify_rohrprofile'] = self.dlg.cb_modify_rohrprofile.isChecked()
-            check_export['modify_speicherkennlinien'] = self.dlg.cb_modify_speicherkennlinien.isChecked()
-            check_export['modify_bodenklassen'] = self.dlg.cb_modify_bodenklassen.isChecked()
-
-            check_export['combine_flaechenrw'] = self.dlg.cb_combine_flaechenrw.isChecked()
-            check_export['combine_einleitdirekt'] = self.dlg.cb_combine_einleitdirekt.isChecked()
+            check_export = {
+                'export_schaechte': self.dlg.cb_export_schaechte.isChecked(),
+                'export_auslaesse': self.dlg.cb_export_auslaesse.isChecked(),
+                'export_speicher': self.dlg.cb_export_speicher.isChecked(),
+                'export_haltungen': self.dlg.cb_export_haltungen.isChecked(),
+                'export_pumpen': self.dlg.cb_export_pumpen.isChecked(),
+                'export_wehre': self.dlg.cb_export_wehre.isChecked(),
+                'export_flaechenrw': self.dlg.cb_export_flaechenrw.isChecked(),
+                'export_einleitdirekt': self.dlg.cb_export_einleitdirekt.isChecked(),
+                'export_aussengebiete': self.dlg.cb_export_aussengebiete.isChecked(),
+                'export_abflussparameter': self.dlg.cb_export_abflussparameter.isChecked(),
+                'export_regenschreiber': self.dlg.cb_export_regenschreiber.isChecked(),
+                'export_rohrprofile': self.dlg.cb_export_rohrprofile.isChecked(),
+                'export_speicherkennlinien': self.dlg.cb_export_speicherkennlinien.isChecked(),
+                'export_bodenklassen': self.dlg.cb_export_bodenklassen.isChecked(),
+                'modify_schaechte': self.dlg.cb_modify_schaechte.isChecked(),
+                'modify_auslaesse': self.dlg.cb_modify_auslaesse.isChecked(),
+                'modify_speicher': self.dlg.cb_modify_speicher.isChecked(),
+                'modify_haltungen': self.dlg.cb_modify_haltungen.isChecked(),
+                'modify_pumpen': self.dlg.cb_modify_pumpen.isChecked(),
+                'modify_wehre': self.dlg.cb_modify_wehre.isChecked(),
+                'modify_flaechenrw': self.dlg.cb_modify_flaechenrw.isChecked(),
+                'modify_einleitdirekt': self.dlg.cb_modify_einleitdirekt.isChecked(),
+                'modify_aussengebiete': self.dlg.cb_modify_aussengebiete.isChecked(),
+                'modify_abflussparameter': self.dlg.cb_modify_abflussparameter.isChecked(),
+                'modify_regenschreiber': self.dlg.cb_modify_regenschreiber.isChecked(),
+                'modify_rohrprofile': self.dlg.cb_modify_rohrprofile.isChecked(),
+                'modify_speicherkennlinien': self.dlg.cb_modify_speicherkennlinien.isChecked(),
+                'modify_bodenklassen': self.dlg.cb_modify_bodenklassen.isChecked(),
+                'combine_flaechenrw': self.dlg.cb_combine_flaechenrw.isChecked(),
+                'combine_einleitdirekt': self.dlg.cb_combine_einleitdirekt.isChecked()
+            }
 
             # Konfigurationsdaten schreiben
-            QKan.config['database_HE'] = database_HE
-            QKan.config['dbtemplate_HE'] = dbtemplate_HE
-            QKan.config['database_QKan'] = database_QKan
-            QKan.config['datenbanktyp'] = datenbanktyp
-            QKan.config['liste_teilgebiete'] = liste_teilgebiete
-            QKan.config['autokorrektur'] = autokorrektur
-            QKan.config['fangradius'] = fangradius
-            QKan.config['mit_verschneidung'] = mit_verschneidung
-            QKan.config['mindestflaeche'] = mindestflaeche
+            QKan.config.autokorrektur = autokorrektur
+            QKan.config.database.qkan = database_QKan
+            QKan.config.database.type = datenbanktyp
+            QKan.config.he.database = database_HE
+            QKan.config.he.template = dbtemplate_HE
+            QKan.config.mit_verschneidung = mit_verschneidung
+            QKan.config.selections.teilgebiete = liste_teilgebiete
 
             for el in check_export:
-                QKan.config[el] = check_export[el]
+                setattr(QKan.config.check_export, el, check_export[el])
 
-            QKan.save_config()
+            QKan.config.save()
 
-            exportKanaldaten(self.iface, database_HE, dbtemplate_HE, self.dbQK, liste_teilgebiete, 
-                             autokorrektur, fangradius, mindestflaeche, mit_verschneidung, exportFlaechenHE8, 
+            exportKanaldaten(self.iface, database_HE, dbtemplate_HE, self.dbQK, liste_teilgebiete,
+                             autokorrektur, QKan.config.fangradius, QKan.config.mindestflaeche, mit_verschneidung,
                              datenbanktyp, check_export)

@@ -19,17 +19,15 @@
   (at your option) any later version.                                  
 
 """
-import json
 import logging
 import os
-import site
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtWidgets import QFileDialog
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 
-from qkan.database.qkan_utils import get_database_QKan, fehlermeldung
-from qkan import QKan
+from qkan import QKan, enums
+from qkan.database.qkan_utils import fehlermeldung, get_database_QKan
 # noinspection PyUnresolvedReferences
 from . import resources
 from .application_dialog import ImportFromHEDialog, ResultsFromHEDialog
@@ -76,21 +74,6 @@ class ImportFromHE:
 
         # Anfang Eigene Funktionen -------------------------------------------------
         # (jh, 09.10.2016)
-
-        # --------------------------------------------------------------------------------------------------
-        # Pfad zum Arbeitsverzeichnis sicherstellen
-        # wordir = os.path.join(site.getuserbase(), 'qkan')
-
-        # if not os.path.isdir(wordir):
-            # os.makedirs(wordir)
-        # --------------------------------------------------------------------------------------------------
-        # Konfigurationsdatei qkan.json lesen
-        #
-
-        # self.configfil = os.path.join(wordir, 'qkan.json')
-        # if os.path.exists(self.configfil):
-            # with open(self.configfil, 'r') as fileconfig:
-                # self.config = json.loads(fileconfig.read())
 
         # Standard für Suchverzeichnis festlegen
         project = QgsProject.instance()
@@ -198,29 +181,12 @@ class ImportFromHE:
     def run_import(self):
         """Öffnen des Formulars zum Import aus HE"""
 
-        if 'database_QKan' in QKan.config:
-            database_QKan = QKan.config['database_QKan']
-        else:
-            database_QKan = ''
-        self.dlg_he.tf_qkanDB.setText(database_QKan)
-
-        if 'database_HE' in QKan.config:
-            database_HE = QKan.config['database_HE']
-        else:
-            database_HE = ''
-        self.dlg_he.tf_heDB.setText(database_HE)
-
-        if 'epsg' in QKan.config:
-            self.epsg = QKan.config['epsg']
-        else:
-            self.epsg = u'25832'
-        self.dlg_he.qsw_epsg.setCrs(QgsCoordinateReferenceSystem.fromEpsgId(int(self.epsg)))
-
-        if 'projectfile' in QKan.config:
-            projectfile = QKan.config['projectfile']
-        else:
-            projectfile = ''
-        self.dlg_he.tf_projectFile.setText(projectfile)
+        self.dlg_he.tf_qkanDB.setText(QKan.config.database.qkan)
+        self.dlg_he.tf_heDB.setText(QKan.config.he.database)
+        self.dlg_he.qsw_epsg.setCrs(QgsCoordinateReferenceSystem.fromEpsgId(
+            QKan.config.epsg
+        ))
+        self.dlg_he.tf_projectFile.setText(QKan.config.project.file)
 
         # Ende Eigene Funktionen ---------------------------------------------------
 
@@ -244,18 +210,14 @@ class ImportFromHE:
             self.epsg = str(self.dlg_he.qsw_epsg.crs().postgisSrid())
 
             # Konfigurationsdaten schreiben
+            QKan.config.database.qkan = database_QKan
+            QKan.config.epsg = self.epsg
+            QKan.config.he.database = database_HE
+            QKan.config.project.file = projectfile
 
-            QKan.config['epsg'] = self.epsg
-            QKan.config['database_QKan'] = database_QKan
-            QKan.config['database_HE'] = database_HE
-            QKan.config['projectfile'] = projectfile
-
-            QKan.save_config()
-            # with open(self.configfil, 'w') as fileconfig:
-                # fileconfig.write(json.dumps(self.config))
+            QKan.config.save()
 
             # Start der Verarbeitung
-
             importKanaldaten(database_HE, database_QKan, projectfile, self.epsg)
 
     # Formularfunktionen -------------------------------------------------------
@@ -272,12 +234,12 @@ class ImportFromHE:
         self.dlg_lz.tf_heDB.setText(filename)
 
     def enable_tf_qmlfile(self):
-        '''aktiviert das Textfeld für die qml-Stildatei'''
+        """aktiviert das Textfeld für die qml-Stildatei"""
         self.dlg_lz.tf_qmlfile.setEnabled(True)
         self.dlg_lz.pb_selectqmlfile.setEnabled(True)
 
     def disable_tf_qmlfile(self):
-        '''deaktiviert das Textfeld für die qml-Stildatei'''
+        """deaktiviert das Textfeld für die qml-Stildatei"""
         self.dlg_lz.tf_qmlfile.setEnabled(False)
         self.dlg_lz.pb_selectqmlfile.setEnabled(False)
 
@@ -300,41 +262,32 @@ class ImportFromHE:
         database_QKan, epsg = get_database_QKan()
 
         # Auswahl der HE-Ergebnisdatenbank zum Laden
-        if 'database_ErgHE' in QKan.config:
-            database_ErgHE = QKan.config['database_ErgHE']
-        else:
-            database_ErgHE = ''
+        database_ErgHE = QKan.config.he.database_erg
         self.dlg_lz.tf_heDB.setText(database_ErgHE)
 
         # Option für Stildatei
-        if 'qml_choice' in QKan.config:
-            qml_choice = QKan.config['qml_choice']
-        else:
-            qml_choice = u'uebh'
+        qml_choice = QKan.config.he.qml_choice
 
         # Standard: User-qml-File ist deaktiviert
         self.disable_tf_qmlfile()
 
-        if qml_choice == u'uebh':
+        if qml_choice == enums.QmlChoice.UEBH:
             self.dlg_lz.rb_uebh.setChecked(True)
-        elif qml_choice == u'uebvol':
+        elif qml_choice == enums.QmlChoice.UEBVOL:
             self.dlg_lz.rb_uebvol.setChecked(True)
-        elif qml_choice == u'userqml':
+        elif qml_choice == enums.QmlChoice.USERQML:
             self.dlg_lz.rb_userqml.setChecked(True)
             # User-qml-File ist aktivieren
             self.enable_tf_qmlfile()
-        elif qml_choice == u'none':
+        elif qml_choice == enums.QmlChoice.NONE:
             self.dlg_lz.rb_none.setChecked(True)
         else:
             fehlermeldung(u"Fehler im Programmcode (1)", u"Nicht definierte Option")
             return False
 
         # Individuelle Stildatei
-        if 'qmlfileResults' in QKan.config:
-            qmlfileResults = QKan.config['qmlfileResults']
-        else:
-            qmlfileResults = ''
-        self.dlg_lz.tf_qmlfile.setText(qmlfileResults)
+        qml_file_results = QKan.config.he.qml_file_results
+        self.dlg_lz.tf_qmlfile.setText(qml_file_results)
 
         # show the dialog
         self.dlg_lz.show()
@@ -344,30 +297,28 @@ class ImportFromHE:
         if result:
 
             # Daten aus Formular übernehmen
-
             database_ErgHE = self.dlg_lz.tf_heDB.text()
-            qmlfileResults = self.dlg_lz.tf_qmlfile.text()
+            qml_file_results = self.dlg_lz.tf_qmlfile.text()
 
             if self.dlg_lz.rb_uebh.isChecked():
-                qml_choice = u'uebh'
+                qml_choice = enums.QmlChoice.UEBH
             elif self.dlg_lz.rb_uebvol.isChecked():
-                qml_choice = u'uebvol'
+                qml_choice = enums.QmlChoice.UEBVOL
             elif self.dlg_lz.rb_userqml.isChecked():
-                qml_choice = u'userqml'
+                qml_choice = enums.QmlChoice.USERQML
             elif self.dlg_lz.rb_none.isChecked():
-                qml_choice = u'none'
+                qml_choice = enums.QmlChoice.NONE
             else:
                 fehlermeldung(u"Fehler im Programmcode (2)", u"Nicht definierte Option")
                 return False
             # Konfigurationsdaten schreiben
 
-            QKan.config['database_QKan'] = database_QKan
-            QKan.config['database_ErgHE'] = database_ErgHE
-            QKan.config['qmlfileResults'] = qmlfileResults
-            QKan.config['qml_choice'] = qml_choice
+            QKan.config.database.qkan = database_QKan
+            QKan.config.he.database_erg = database_ErgHE
+            QKan.config.he.qml_choice = qml_choice
+            QKan.config.he.qml_file_results = qml_file_results
 
-            QKan.save_config()
+            QKan.config.save()
 
             # Start der Verarbeitung
-
-            importResults(database_ErgHE, database_QKan, qml_choice, qmlfileResults, epsg)
+            importResults(database_ErgHE, database_QKan, qml_choice, qml_file_results, epsg)
