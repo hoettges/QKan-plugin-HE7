@@ -8,13 +8,14 @@ import matplotlib.lines as lines
 import matplotlib.text as mtext
 import matplotlib.transforms as mtransforms
 from matplotlib import pyplot as plt
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas, \
-    NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.lines import Line2D
-from qgis.PyQt.QtWidgets import QWidget
 
+from qgis.PyQt.QtWidgets import QWidget
 from qkan.database.fbfunc import FBConnection
-from .Enums import SliderMode, LayerType
+
+from .Enums import LayerType, SliderMode
 
 main_logger = logging.getLogger("QKan.ganglinienhe\plotter")
 main_logger.info("Plotter-Modul gestartet")
@@ -47,7 +48,7 @@ class Laengsschnitt:
         Destruktor
         """
         del self.__fig
-        self.__log.info(u"Figure wurde gelöscht")
+        self.__log.info("Figure wurde gelöscht")
 
     def get_widget(self):
         """
@@ -83,7 +84,7 @@ class Laengsschnitt:
                 if isinstance(plot, HaltungLinie) or isinstance(plot, SchachtLinie):
                     plot._text.set_color(color)
                 plot.set_color(color)
-        self.__log.info(u"Farben der {} wurden gesetzt".format(key))
+        self.__log.info("Farben der {} wurden gesetzt".format(key))
         self.__fig.canvas.draw()
 
     def reset_colors(self):
@@ -100,7 +101,7 @@ class Laengsschnitt:
                 if isinstance(plot, HaltungLinie):
                     plot._text.set_color("k")
                 plot.set_color("k")
-        self.__log.info(u"Schächte und Haltungen wurden schwarz eingefärbt")
+        self.__log.info("Schächte und Haltungen wurden schwarz eingefärbt")
         self.__fig.canvas.draw()
 
     def __draw(self):
@@ -121,18 +122,27 @@ class Laengsschnitt:
             schacht = self.__route.get("schachtinfo").get(name)
             boden = schacht.get("sohlhoehe")
             decke = schacht.get("deckelhoehe")
-            self.__log.info(u"Schacht \"{}\" wird geplottet".format(schacht))
-            l = SchachtLinie([self.__x_pointer, self.__x_pointer], [boden, decke], color='k', label=name)
+            self.__log.info(u'Schacht "{}" wird geplottet'.format(schacht))
+            l = SchachtLinie(
+                [self.__x_pointer, self.__x_pointer],
+                [boden, decke],
+                color="k",
+                label=name,
+            )
             l.set_schacht_width(self.__schacht_breite)
             l.set_name(name)
             self.__objects["schaechte"][name] = [l]
             self.__ax.add_line(l)
-            l = Line2D([self.__x_pointer, self.__x_pointer + self.__schacht_breite], [boden, boden], color='k')
+            l = Line2D(
+                [self.__x_pointer, self.__x_pointer + self.__schacht_breite],
+                [boden, boden],
+                color="k",
+            )
             self.__objects["schaechte"][name].append(l)
             self.__ax.add_line(l)
             self.__x_pointer += self.__schacht_breite
-            self.__log.debug(u"x_pointer wurde auf {} gesetzt".format(self.__x_pointer))
-            l = Line2D([self.__x_pointer, self.__x_pointer], [boden, decke], color='k')
+            self.__log.debug("x_pointer wurde auf {} gesetzt".format(self.__x_pointer))
+            l = Line2D([self.__x_pointer, self.__x_pointer], [boden, decke], color="k")
             self.__objects["schaechte"][name].append(l)
             self.__ax.add_line(l)
             if self.__minY is None:
@@ -150,7 +160,7 @@ class Laengsschnitt:
             :type name:str
             """
             haltung = self.__route.get("haltunginfo").get(name)
-            self.__log.info(u"Haltung \"{}\" wird geplottet".format(name))
+            self.__log.info(u'Haltung "{}" wird geplottet'.format(name))
             laenge = haltung.get("laenge")
             oben = haltung.get("sohlhoeheoben")
             unten = haltung.get("sohlhoeheunten")
@@ -158,32 +168,62 @@ class Laengsschnitt:
             schacht_oben = haltung.get("schachtoben")
             schacht_unten = haltung.get("schachtunten")
 
-            deckel_hoehe1 = self.__route.get("schachtinfo")[schacht_oben].get("deckelhoehe")
-            deckel_hoehe2 = self.__route.get("schachtinfo")[schacht_unten].get("deckelhoehe")
+            deckel_hoehe1 = self.__route.get("schachtinfo")[schacht_oben].get(
+                "deckelhoehe"
+            )
+            deckel_hoehe2 = self.__route.get("schachtinfo")[schacht_unten].get(
+                "deckelhoehe"
+            )
 
             laenge -= self.__schacht_breite
-            l = HaltungLinie([self.__x_pointer, self.__x_pointer + laenge], [oben, unten], color='k', label=name)
+            l = HaltungLinie(
+                [self.__x_pointer, self.__x_pointer + laenge],
+                [oben, unten],
+                color="k",
+                label=name,
+            )
             l.set_name(name)
             self.__objects["haltungen"][name] = [l]
             self.__ax.add_line(l)
-            l = Line2D([self.__x_pointer, self.__x_pointer + laenge], [oben + hoehe, unten + hoehe], color='k')
+            l = Line2D(
+                [self.__x_pointer, self.__x_pointer + laenge],
+                [oben + hoehe, unten + hoehe],
+                color="k",
+            )
             self.__ax.add_line(l)
             self.__objects["haltungen"][name].append(l)
-            l = Line2D([self.__x_pointer, self.__x_pointer + laenge], [deckel_hoehe1, deckel_hoehe2], color='g',
-                       label=u"Oberfläche",
-                       linewidth=3, linestyle=':')
-            self.__log.info(u"Oberfläche wurde geplottet")
+            l = Line2D(
+                [self.__x_pointer, self.__x_pointer + laenge],
+                [deckel_hoehe1, deckel_hoehe2],
+                color="g",
+                label="Oberfläche",
+                linewidth=3,
+                linestyle=":",
+            )
+            self.__log.info("Oberfläche wurde geplottet")
             self.__ax.add_line(l)
             if plots.get("surface") is None:
                 plots["surface"] = l
-            l = Line2D([self.__x_pointer, self.__x_pointer], [oben, oben + hoehe], color='w', linewidth=2, alpha=0.5,
-                       zorder=4)
+            l = Line2D(
+                [self.__x_pointer, self.__x_pointer],
+                [oben, oben + hoehe],
+                color="w",
+                linewidth=2,
+                alpha=0.5,
+                zorder=4,
+            )
             self.__ax.add_line(l)
-            l = Line2D([self.__x_pointer + laenge, self.__x_pointer + laenge], [unten, unten + hoehe], color='w',
-                       linewidth=2, alpha=0.5, zorder=4)
+            l = Line2D(
+                [self.__x_pointer + laenge, self.__x_pointer + laenge],
+                [unten, unten + hoehe],
+                color="w",
+                linewidth=2,
+                alpha=0.5,
+                zorder=4,
+            )
             self.__ax.add_line(l)
             self.__x_pointer += laenge
-            self.__log.debug(u"x_pointer wurde auf {} gesetzt".format(self.__x_pointer))
+            self.__log.debug("x_pointer wurde auf {} gesetzt".format(self.__x_pointer))
 
         while True:
             if switch:
@@ -225,7 +265,7 @@ class Maximizer:
         Destruktor
         """
         del self.__fig
-        self.__log.info(u"Figure wurde gelöscht")
+        self.__log.info("Figure wurde gelöscht")
 
     def __fetch_max_simulation_data(self):
         """
@@ -239,17 +279,24 @@ class Maximizer:
         schaechte = {}
         for haltung in self.__route.get("haltungen"):
             statement = u'SELECT wasserstandoben,wasserstandunten FROM lau_max_el WHERE "KANTE"={}'.format(
-                u"'{}'".format(haltung))
+                "'{}'".format(haltung)
+            )
             self.__db.sql(statement)
             wasserstandoben, wasserstandunten = self.__db.fetchone()
-            haltungen[haltung] = dict(wasserstandoben=wasserstandoben, wasserstandunten=wasserstandunten)
+            haltungen[haltung] = dict(
+                wasserstandoben=wasserstandoben, wasserstandunten=wasserstandunten
+            )
 
-        self.__log.info(u"Maximalwerte der Haltungen wurden abgefragt")
+        self.__log.info("Maximalwerte der Haltungen wurden abgefragt")
         for schacht in self.__route.get("schaechte"):
-            self.__db.sql(u'SELECT wasserstand FROM lau_max_s WHERE "KNOTEN"={}'.format(u"'{}'".format(schacht)))
+            self.__db.sql(
+                u'SELECT wasserstand FROM lau_max_s WHERE "KNOTEN"={}'.format(
+                    "'{}'".format(schacht)
+                )
+            )
             wasserstand, = self.__db.fetchone()
             schaechte[schacht] = wasserstand
-        self.__log.info(u"Maximalwerte der Schächte wurden abgefragt")
+        self.__log.info("Maximalwerte der Schächte wurden abgefragt")
         return dict(haltungen=haltungen, schaechte=schaechte)
 
     def __draw(self):
@@ -280,8 +327,12 @@ class Maximizer:
             """
             haltung = self.__route.get("haltunginfo").get(name)
             laenge = haltung.get("laenge") - self.__schacht_breite
-            wasseroben = self.__simulation.get("haltungen").get(name).get("wasserstandoben")
-            wasserunten = self.__simulation.get("haltungen").get(name).get("wasserstandunten")
+            wasseroben = (
+                self.__simulation.get("haltungen").get(name).get("wasserstandoben")
+            )
+            wasserunten = (
+                self.__simulation.get("haltungen").get(name).get("wasserstandunten")
+            )
 
             self.__x += [self.__x_pointer, self.__x_pointer + laenge]
             self.__y += [wasseroben, wasserunten]
@@ -295,12 +346,14 @@ class Maximizer:
             else:
                 draw_haltung(self.__route.get("haltungen").pop(0))
             switch = not switch
-        self.__log.debug(u"Y-Werte:\t{}\nX-Werte:\t{}".format(self.__y, self.__x))
-        self.__plot, = self.__ax.plot(self.__x, self.__y, "b--", label="Maximum", alpha=0.6)
-        self.__log.info(u"Maximal-Linie wurde geplottet")
+        self.__log.debug("Y-Werte:\t{}\nX-Werte:\t{}".format(self.__y, self.__x))
+        self.__plot, = self.__ax.plot(
+            self.__x, self.__y, "b--", label="Maximum", alpha=0.6
+        )
+        self.__log.info("Maximal-Linie wurde geplottet")
         if plots.get("max") is None:
             plots["max"] = self.__plot
-        self.__log.info(u"Maximal-Linie wurde gesetzt")
+        self.__log.info("Maximal-Linie wurde gesetzt")
 
     def hide(self):
         """
@@ -308,7 +361,7 @@ class Maximizer:
         """
         self.__plot.set_alpha(0)
         self.__fig.canvas.draw()
-        self.__log.info(u"Alpha-Wert der Maximal-Linie wurde auf 0 gesetzt")
+        self.__log.info("Alpha-Wert der Maximal-Linie wurde auf 0 gesetzt")
 
     def show(self):
         """
@@ -316,7 +369,7 @@ class Maximizer:
         """
         self.__plot.set_alpha(0.6)
         self.__fig.canvas.draw()
-        self.__log.info(u"Alpha-Wert der Maximal-Linie wurde auf 0.6 gesetzt")
+        self.__log.info("Alpha-Wert der Maximal-Linie wurde auf 0.6 gesetzt")
 
 
 class Animator:
@@ -350,7 +403,9 @@ class Animator:
         self.__plot, = self.__ax.plot([], [], "b:", label="Wasserstand", alpha=1)
         if plots.get("waterlevel") is None:
             plots["waterlevel"] = self.__plot
-        self.__max_value, self.__simulation, self.__timestamps = self.__fetch_simulation_data()
+        self.__max_value, self.__simulation, self.__timestamps = (
+            self.__fetch_simulation_data()
+        )
         slider.setRange(0, self.__max_value)
         self.__slider = slider
         self.__animation = None
@@ -373,7 +428,7 @@ class Animator:
         :type ganglinie:Ganglinie
         """
         self.__ganglinie = ganglinie
-        self.__log.info(u"Ganglinie wurde dem Längsschnitt zugewiesen")
+        self.__log.info("Ganglinie wurde dem Längsschnitt zugewiesen")
 
     def get_timestamps(self):
         """
@@ -392,7 +447,7 @@ class Animator:
         Destruktor
         """
         del self.__fig
-        self.__log.info(u"Figure wurde gelöscht")
+        self.__log.info("Figure wurde gelöscht")
 
     def __fetch_simulation_data(self):
         """
@@ -405,25 +460,37 @@ class Animator:
         haltungen = {}
         schaechte = {}
         for haltung in self.__route.get("haltungen"):
-            self.__db.sql(u'SELECT wasserstandoben,wasserstandunten,zeitpunkt FROM lau_gl_el WHERE "KANTE"={}'.format(
-                u"'{}'".format(haltung)))
+            self.__db.sql(
+                u'SELECT wasserstandoben,wasserstandunten,zeitpunkt FROM lau_gl_el WHERE "KANTE"={}'.format(
+                    "'{}'".format(haltung)
+                )
+            )
             wasserstaende = self.__db.fetchall()
             for wasserstandoben, wasserstandunten, zeitpunkt in wasserstaende:
                 if haltungen.get(zeitpunkt) is None:
                     haltungen[zeitpunkt] = {}
-                haltungen[zeitpunkt][haltung] = dict(wasserstandoben=wasserstandoben, wasserstandunten=wasserstandunten)
+                haltungen[zeitpunkt][haltung] = dict(
+                    wasserstandoben=wasserstandoben, wasserstandunten=wasserstandunten
+                )
 
-        self.__log.info(u"Wasserstände und Zeitpunkte der Haltungen wurden abgefragt")
+        self.__log.info("Wasserstände und Zeitpunkte der Haltungen wurden abgefragt")
         for schacht in self.__route.get("schaechte"):
             self.__db.sql(
-                u'SELECT wasserstand,zeitpunkt FROM lau_gl_s WHERE "KNOTEN"={}'.format(u"'{}'".format(schacht)))
+                u'SELECT wasserstand,zeitpunkt FROM lau_gl_s WHERE "KNOTEN"={}'.format(
+                    "'{}'".format(schacht)
+                )
+            )
             wasserstaende = self.__db.fetchall()
             for wasserstand, zeitpunkt in wasserstaende:
                 if schaechte.get(zeitpunkt) is None:
                     schaechte[zeitpunkt] = {}
                 schaechte[zeitpunkt][schacht] = wasserstand
-        self.__log.info(u"Wasserstände und Zeitpunkte der Schächte wurden abgefragt")
-        return len(list(schaechte.keys())) - 1, dict(haltungen=haltungen, schaechte=schaechte), sorted(schaechte.keys())
+        self.__log.info("Wasserstände und Zeitpunkte der Schächte wurden abgefragt")
+        return (
+            len(list(schaechte.keys())) - 1,
+            dict(haltungen=haltungen, schaechte=schaechte),
+            sorted(schaechte.keys()),
+        )
 
     def draw(self, timestamp):
         """
@@ -464,8 +531,18 @@ class Animator:
             haltung = self.__route.get("haltunginfo").get(name)
 
             laenge = haltung.get("laenge") - self.__schacht_breite
-            wasseroben = self.__simulation.get("haltungen").get(timestamp).get(name).get("wasserstandoben")
-            wasserunten = self.__simulation.get("haltungen").get(timestamp).get(name).get("wasserstandunten")
+            wasseroben = (
+                self.__simulation.get("haltungen")
+                .get(timestamp)
+                .get(name)
+                .get("wasserstandoben")
+            )
+            wasserunten = (
+                self.__simulation.get("haltungen")
+                .get(timestamp)
+                .get(name)
+                .get("wasserstandunten")
+            )
             self.__x += [self.__x_pointer, self.__x_pointer + laenge]
             self.__y += [wasseroben, wasserunten]
             self.__x_pointer += laenge
@@ -516,13 +593,19 @@ class Animator:
         :type mode: SliderMode
         """
         speed = self.__get_speed(value)
-        self.__log.info(u"Animation wurde mit Geschwindigkeit = {} gestartet".format(value))
+        self.__log.info(
+            "Animation wurde mit Geschwindigkeit = {} gestartet".format(value)
+        )
         self.__speed = speed
         self.__mode = mode
-        self.__log.debug(u"Modus:\t{}".format(u"Vorwärts" if mode == SliderMode.Forward else u"Rückwärts"))
+        self.__log.debug(
+            "Modus:\t{}".format(
+                "Vorwärts" if mode == SliderMode.Forward else "Rückwärts"
+            )
+        )
         self.__last_time = datetime.datetime.today()
         self.__animation.event_source.start()
-        self.__log.info(u"Animation wird fortgesetzt")
+        self.__log.info("Animation wird fortgesetzt")
 
     def __get_speed(self, x):
         """
@@ -534,7 +617,7 @@ class Animator:
         :rtype: int
         """
         speed = x * self.__simulation_second * 0.01
-        self.__log.debug(u"Animationsgeschwindigkeit:\t{}".format(speed))
+        self.__log.debug("Animationsgeschwindigkeit:\t{}".format(speed))
         return speed
 
     def pause(self):
@@ -545,7 +628,7 @@ class Animator:
             self.__animation.event_source.stop()
         except AttributeError:
             pass
-        self.__log.info(u"Animation wurde pausiert")
+        self.__log.info("Animation wurde pausiert")
 
     def __get_next_timestamp(self, index, speed, mode):
         """
@@ -563,15 +646,20 @@ class Animator:
         if self.__last_index == -1:
             self.__last_index = index
             return index
-        diff = (datetime.datetime.today() - self.__last_time).microseconds / 10000.
+        diff = (datetime.datetime.today() - self.__last_time).microseconds / 10000.0
         self.__time += speed * diff if diff > 0 else speed
         self.__last_time = datetime.datetime.today()
         if mode == SliderMode.Forward:
-            if self.__last_index == self.__max_value and self.__time >= self.__simulation_second:
+            if (
+                self.__last_index == self.__max_value
+                and self.__time >= self.__simulation_second
+            ):
                 self.__last_index = 0
                 self.__time = 0
                 return self.__last_index
-            for i, val in reversed(list(enumerate(self.__timestamps[self.__last_index + 1:]))):
+            for i, val in reversed(
+                list(enumerate(self.__timestamps[self.__last_index + 1 :]))
+            ):
                 diff = val - self.__timestamps[self.__last_index]
                 if diff.seconds < self.__time:
                     self.__time = 0
@@ -582,7 +670,9 @@ class Animator:
                 self.__last_index = self.__max_value
                 self.__time = 0
                 return self.__last_index
-            for i, val in reversed(list(enumerate(self.__timestamps[:self.__last_index]))):
+            for i, val in reversed(
+                list(enumerate(self.__timestamps[: self.__last_index]))
+            ):
                 diff = self.__timestamps[self.__last_index] - val
                 if diff.seconds < self.__time:
                     self.__time = 0
@@ -606,9 +696,11 @@ class Animator:
                 self.__update_timestamp(index)
                 self.__slider.setValue(index)
 
-        self.__animation = animation.FuncAnimation(self.__fig, animate, frames=self.__max_value, interval=200)
+        self.__animation = animation.FuncAnimation(
+            self.__fig, animate, frames=self.__max_value, interval=200
+        )
         self.pause()
-        self.__log.info(u"Animation wurde initialisiert und pausiert")
+        self.__log.info("Animation wurde initialisiert und pausiert")
 
     def __update_timestamp(self, value):
         """
@@ -653,8 +745,8 @@ def set_ax_labels(x, y):
     plt.figure(0)
     plt.xlabel(x)
     plt.ylabel(y)
-    main_logger.info(u"Plot-Achsen wurden beschriftet")
-    main_logger.debug(u"X:\t{}\nY:\t{}".format(x, y))
+    main_logger.info("Plot-Achsen wurden beschriftet")
+    main_logger.debug("X:\t{}\nY:\t{}".format(x, y))
 
 
 def set_legend():
@@ -673,7 +765,7 @@ def set_legend():
         legend_plots.append(_max)
     plt.figure(0)
     plt.legend(handles=legend_plots)
-    main_logger.info(u"Legende wurde gesetzt")
+    main_logger.info("Legende wurde gesetzt")
 
 
 def reset_legend():
@@ -681,7 +773,7 @@ def reset_legend():
     Löscht alle Plots aus der Figure des Längsschnitts
     """
     del plots[:]
-    main_logger.info(u"Alle Plots aus der Figure gelöscht")
+    main_logger.info("Alle Plots aus der Figure gelöscht")
 
 
 class ILines(lines.Line2D):
@@ -790,7 +882,9 @@ class HaltungLinie(ILines):
         length = x[1] - x[0]
         text_length = self._text.get_size()
         if len(x):
-            self._text.set_position((start + (length / 2.) - (text_length / 2.), y[-1]))
+            self._text.set_position(
+                (start + (length / 2.0) - (text_length / 2.0), y[-1])
+            )
         lines.Line2D.set_data(self, x, y)
 
 
@@ -818,7 +912,14 @@ class SchachtLinie(ILines):
         :type y: list
         """
         if len(x):
-            self._text.set_position((x[-1] + (self.__schacht_breite / 2.) - (self._text.get_size() / 2.), y[-1]))
+            self._text.set_position(
+                (
+                    x[-1]
+                    + (self.__schacht_breite / 2.0)
+                    - (self._text.get_size() / 2.0),
+                    y[-1],
+                )
+            )
         lines.Line2D.set_data(self, x, y)
 
     def set_schacht_width(self, width):

@@ -22,12 +22,12 @@
 import logging
 import os
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtWidgets import QFileDialog
-from qgis.core import QgsCoordinateReferenceSystem, QgsProject
-
 from qkan import QKan, enums
 from qkan.database.qkan_utils import fehlermeldung, get_database_QKan
+
 # noinspection PyUnresolvedReferences
 from . import resources
 from .application_dialog import ImportFromHEDialog, ResultsFromHEDialog
@@ -36,7 +36,7 @@ from .results_from_he import importResults
 
 # noinspection PyUnresolvedReferences
 
-LOGGER = logging.getLogger(u'QKan.importhe.application')
+LOGGER = logging.getLogger("QKan.importhe.application")
 
 
 class ImportFromHE:
@@ -55,17 +55,16 @@ class ImportFromHE:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
+        locale = QSettings().value("locale/userLocale")[0:2]
         locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'ImportFromHE_{}.qm'.format(locale))
+            self.plugin_dir, "i18n", "ImportFromHE_{}.qm".format(locale)
+        )
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
 
-            if qVersion() > '4.3.3':
+            if qVersion() > "4.3.3":
                 QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
@@ -108,24 +107,26 @@ class ImportFromHE:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('ImportFromHE', message)
+        return QCoreApplication.translate("ImportFromHE", message)
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_import_path = ':/plugins/qkan/importhe/res/icon_import.png'
+        icon_import_path = ":/plugins/qkan/importhe/res/icon_import.png"
         QKan.instance.add_action(
             icon_import_path,
-            text=self.tr(u'Import aus Hystem-Extran'),
+            text=self.tr("Import aus Hystem-Extran"),
             callback=self.run_import,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow(),
+        )
 
-        icon_results_path = ':/plugins/qkan/importhe/res/icon_results.png'
+        icon_results_path = ":/plugins/qkan/importhe/res/icon_results.png"
         QKan.instance.add_action(
             icon_results_path,
-            text=self.tr(u'Ergebnisse aus Hystem-Extran einlesen'),
+            text=self.tr("Ergebnisse aus Hystem-Extran einlesen"),
             callback=self.run_results,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow(),
+        )
 
     def unload(self):
         pass
@@ -135,44 +136,52 @@ class ImportFromHE:
     def selectFile_HeDB(self):
         """Datenbankverbindung zur HE-Datenbank (Firebird) auswaehlen"""
 
-        filename, __ = QFileDialog.getOpenFileName(self.dlg_he,
-                                                   u"Dateinamen der zu lesenden HE-Datenbank auswählen",
-                                                   self.default_dir,
-                                                   u"*.idbf")
-        if os.path.dirname(filename) != '':
+        filename, __ = QFileDialog.getOpenFileName(
+            self.dlg_he,
+            "Dateinamen der zu lesenden HE-Datenbank auswählen",
+            self.default_dir,
+            "*.idbf",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_he.tf_heDB.setText(filename)
 
     def selectFile_qkanDBHE(self):
         """Datenbankverbindung zur QKan-Datenbank (SpatiaLite) auswaehlen"""
 
-        filename, __ = QFileDialog.getSaveFileName(self.dlg_he,
-                                                   u"Dateinamen der zu erstellenden SpatiaLite-Datenbank eingeben",
-                                                   self.default_dir,
-                                                   u"*.sqlite")
-        if os.path.dirname(filename) != '':
+        filename, __ = QFileDialog.getSaveFileName(
+            self.dlg_he,
+            "Dateinamen der zu erstellenden SpatiaLite-Datenbank eingeben",
+            self.default_dir,
+            "*.sqlite",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_he.tf_qkanDB.setText(filename)
 
     def selectProjectFile(self):
         """Zu erzeugende Projektdatei festlegen, falls ausgewählt."""
 
-        filename, __ = QFileDialog.getSaveFileName(self.dlg_he,
-                                                   u"Dateinamen der zu erstellenden Projektdatei eingeben",
-                                                   self.default_dir,
-                                                   u"*.qgs")
-        if os.path.dirname(filename) != '':
+        filename, __ = QFileDialog.getSaveFileName(
+            self.dlg_he,
+            "Dateinamen der zu erstellenden Projektdatei eingeben",
+            self.default_dir,
+            "*.qgs",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_he.tf_projectFile.setText(filename)
 
     def selectFile_HELZ(self):
         """Datenbankverbindung zur HE-Datenbank (Firebird) auswaehlen"""
 
-        filename, __, = QFileDialog.getOpenFileName(self.dlg_lz,
-                                                    u"Dateinamen der HE-Datenbank mit den LZ-Ergebnissen auswählen",
-                                                    self.default_dir,
-                                                    u"*.idbf")
-        if os.path.dirname(filename) != '':
+        filename, __, = QFileDialog.getOpenFileName(
+            self.dlg_lz,
+            "Dateinamen der HE-Datenbank mit den LZ-Ergebnissen auswählen",
+            self.default_dir,
+            "*.idbf",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_lz.tf_heDB.setText(filename)
 
@@ -183,9 +192,9 @@ class ImportFromHE:
 
         self.dlg_he.tf_qkanDB.setText(QKan.config.database.qkan)
         self.dlg_he.tf_heDB.setText(QKan.config.he.database)
-        self.dlg_he.qsw_epsg.setCrs(QgsCoordinateReferenceSystem.fromEpsgId(
-            QKan.config.epsg
-        ))
+        self.dlg_he.qsw_epsg.setCrs(
+            QgsCoordinateReferenceSystem.fromEpsgId(QKan.config.epsg)
+        )
         self.dlg_he.tf_projectFile.setText(QKan.config.project.file)
 
         # Ende Eigene Funktionen ---------------------------------------------------
@@ -225,11 +234,13 @@ class ImportFromHE:
     def selectFile_HeErgDB(self):
         """Datenbankverbindung zur HE-Ergebnisdatenbank (Firebird) auswaehlen"""
 
-        filename, _ = QFileDialog.getOpenFileName(self.dlg_lz,
-                                                  u"Dateinamen der zu lesenden HE-Ergebnisdatenbank auswählen",
-                                                  self.default_dir,
-                                                  u"*.idbf")
-        if os.path.dirname(filename) != '':
+        filename, _ = QFileDialog.getOpenFileName(
+            self.dlg_lz,
+            "Dateinamen der zu lesenden HE-Ergebnisdatenbank auswählen",
+            self.default_dir,
+            "*.idbf",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_lz.tf_heDB.setText(filename)
 
@@ -246,11 +257,13 @@ class ImportFromHE:
     def selectqmlfileResults(self):
         """qml-Stildatei auswählen"""
 
-        filename, __ = QFileDialog.getOpenFileName(self.dlg_lz,
-                                                   u"Dateinamen der einzulesenen Stildatei auswählen",
-                                                   self.default_dir,
-                                                   u"*.qml")
-        if os.path.dirname(filename) != '':
+        filename, __ = QFileDialog.getOpenFileName(
+            self.dlg_lz,
+            "Dateinamen der einzulesenen Stildatei auswählen",
+            self.default_dir,
+            "*.qml",
+        )
+        if os.path.dirname(filename) != "":
             os.chdir(os.path.dirname(filename))
         self.dlg_lz.tf_qmlfile.setText(filename)
 
@@ -282,7 +295,7 @@ class ImportFromHE:
         elif qml_choice == enums.QmlChoice.NONE:
             self.dlg_lz.rb_none.setChecked(True)
         else:
-            fehlermeldung(u"Fehler im Programmcode (1)", u"Nicht definierte Option")
+            fehlermeldung("Fehler im Programmcode (1)", "Nicht definierte Option")
             return False
 
         # Individuelle Stildatei
@@ -309,7 +322,7 @@ class ImportFromHE:
             elif self.dlg_lz.rb_none.isChecked():
                 qml_choice = enums.QmlChoice.NONE
             else:
-                fehlermeldung(u"Fehler im Programmcode (2)", u"Nicht definierte Option")
+                fehlermeldung("Fehler im Programmcode (2)", "Nicht definierte Option")
                 return False
             # Konfigurationsdaten schreiben
 
@@ -321,4 +334,6 @@ class ImportFromHE:
             QKan.config.save()
 
             # Start der Verarbeitung
-            importResults(database_ErgHE, database_QKan, qml_choice, qml_file_results, epsg)
+            importResults(
+                database_ErgHE, database_QKan, qml_choice, qml_file_results, epsg
+            )

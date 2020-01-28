@@ -26,8 +26,9 @@ import os
 from qgis.PyQt import uic
 from qgis.PyQt.QtWidgets import QDialog
 
-FORM_CLASS_import, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'res', 'application_import.ui'))
+FORM_CLASS_import, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "res", "application_import.ui")
+)
 
 
 class ImportFromHEDialog(QDialog, FORM_CLASS_import):
@@ -37,8 +38,9 @@ class ImportFromHEDialog(QDialog, FORM_CLASS_import):
         self.setupUi(self)
 
 
-FORM_CLASS_results, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'res', 'application_results.ui'))
+FORM_CLASS_results, _ = uic.loadUiType(
+    os.path.join(os.path.dirname(__file__), "res", "application_results.ui")
+)
 
 
 class ResultsFromHEDialog(QDialog, FORM_CLASS_results):

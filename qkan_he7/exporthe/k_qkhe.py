@@ -24,28 +24,40 @@ import os
 import shutil
 import time
 
+from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtWidgets import QProgressBar
-from qgis.core import QgsMessageLog, Qgis
-
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_database import versionolder
-from qkan.database.qkan_utils import fortschritt, fehlermeldung, meldung, checknames
+from qkan.database.qkan_utils import checknames, fehlermeldung, fortschritt, meldung
+
 # Referenzlisten
 from qkan.database.reflists import abflusstypen
-from qkan.linkflaechen.updatelinks import updatelinkfl, updatelinksw, updatelinkageb
+from qkan.linkflaechen.updatelinks import updatelinkageb, updatelinkfl, updatelinksw
 
-logger = logging.getLogger('QKan.exporthe.k_qkhe')
+logger = logging.getLogger("QKan.exporthe.k_qkhe")
 
 progress_bar = None
 
 
 # Hauptprogramm ---------------------------------------------------------------------------------------------
 
-def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete, autokorrektur,
-                     fangradius=0.1, mindestflaeche=0.5, mit_verschneidung=True, exportFlaechenHE8=True, 
-                     datenbanktyp='spatialite', check_export={}):
-    '''Export der Kanaldaten aus einer QKan-SpatiaLite-Datenbank und Schreiben in eine HE-Firebird-Datenbank.
+
+def exportKanaldaten(
+    iface,
+    database_HE,
+    dbtemplate_HE,
+    dbQK,
+    liste_teilgebiete,
+    autokorrektur,
+    fangradius=0.1,
+    mindestflaeche=0.5,
+    mit_verschneidung=True,
+    exportFlaechenHE8=True,
+    datenbanktyp="spatialite",
+    check_export={},
+):
+    """Export der Kanaldaten aus einer QKan-SpatiaLite-Datenbank und Schreiben in eine HE-Firebird-Datenbank.
 
     :database_HE:           Pfad zur HE-Firebird-Datenbank
     :type database_HE:      string
@@ -81,34 +93,42 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     :type check_export:     Dictionary
 
     :returns:               void
-    '''
+    """
 
     # Statusmeldung in der Anzeige
     global progress_bar
     progress_bar = QProgressBar(iface.messageBar())
     progress_bar.setRange(0, 100)
-    status_message = iface.messageBar().createMessage("", "Export in Arbeit. Bitte warten.")
+    status_message = iface.messageBar().createMessage(
+        "", "Export in Arbeit. Bitte warten."
+    )
     status_message.layout().addWidget(progress_bar)
     iface.messageBar().pushWidget(status_message, Qgis.Info, 10)
 
     # Referenzliste der Abflusstypen für HYSTEM-EXTRAN
-    he_fltyp_ref = abflusstypen('he')
+    he_fltyp_ref = abflusstypen("he")
 
     # ITWH-Datenbank aus gewählter Vorlage kopieren
     if os.path.exists(database_HE):
         try:
             os.remove(database_HE)
         except BaseException as err:
-            fehlermeldung('Fehler (33) in QKan_Export',
-                          'Die HE-Datenbank ist schon vorhanden und kann nicht ersetzt werden: {}'.format(repr(err)))
+            fehlermeldung(
+                "Fehler (33) in QKan_Export",
+                "Die HE-Datenbank ist schon vorhanden und kann nicht ersetzt werden: {}".format(
+                    repr(err)
+                ),
+            )
             return False
     try:
         shutil.copyfile(dbtemplate_HE, database_HE)
     except BaseException as err:
-        fehlermeldung('Fehler (34) in QKan_Export',
-                      'Kopieren der Vorlage HE-Datenbank fehlgeschlagen: {}\nVorlage: {}\nZiel: {}\n'.format(repr(err),
-                                                                                                              dbtemplate_HE,
-                                                                                                              database_HE))
+        fehlermeldung(
+            "Fehler (34) in QKan_Export",
+            "Kopieren der Vorlage HE-Datenbank fehlgeschlagen: {}\nVorlage: {}\nZiel: {}\n".format(
+                repr(err), dbtemplate_HE, database_HE
+            ),
+        )
         return False
     fortschritt("Firebird-Datenbank aus Vorlage kopiert...", 0.01)
     progress_bar.setValue(1)
@@ -118,8 +138,10 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     dbHE = FBConnection(database_HE)  # Datenbankobjekt der HE-Datenbank zum Schreiben
 
     if dbHE is None:
-        fehlermeldung("(1) Fehler",
-                      'ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!'.format(database_HE))
+        fehlermeldung(
+            "(1) Fehler",
+            "ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(database_HE),
+        )
         return None
 
     # --------------------------------------------------------------------------------------------------
@@ -151,17 +173,19 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     dbHE.sql("SELECT NEXTID, VERSION FROM ITWH$PROGINFO")
     data = dbHE.fetchone()
     nextid = int(data[0]) + 1
-    heDBVersion = data[1].split('.')
-    logger.debug('HE IDBF-Version {}'.format(heDBVersion))
+    heDBVersion = data[1].split(".")
+    logger.debug("HE IDBF-Version {}".format(heDBVersion))
 
     # --------------------------------------------------------------------------------------------
     # Export der Schaechte
 
-    if check_export['export_schaechte'] or check_export['modify_schaechte']:
+    if check_export["export_schaechte"] or check_export["modify_schaechte"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " AND schaechte.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " AND schaechte.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -177,44 +201,55 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 schaechte.createdat
             FROM schaechte
             WHERE schaechte.schachttyp = 'Schacht'{}
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_schaechte'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_schaechte"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Schaechte Teil 1...', 0.1)
+        fortschritt("Export Schaechte Teil 1...", 0.1)
         progress_bar.setValue(15)
 
         for attr in dbQK.fetchall():
             # progress_bar.setValue(progress_bar.value() + 1)
 
             # In allen Feldern None durch NULL ersetzen
-            (schnam, deckelhoehe_t, sohlhoehe_t, durchmesser_t, strasse, xsch_t, ysch_t, createdat_t) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                schnam,
+                deckelhoehe_t,
+                sohlhoehe_t,
+                durchmesser_t,
+                strasse,
+                xsch_t,
+                ysch_t,
+                createdat_t,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = \
-                ('NULL' if tt == 'NULL' else '{:.3f}'.format(float(tt)) \
-                 for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t))
+            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = (
+                "NULL" if tt == "NULL" else "{:.3f}".format(float(tt))
+                for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t)
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze
-            if check_export['modify_schaechte']:
+            if check_export["modify_schaechte"]:
                 sql = """
                     UPDATE SCHACHT SET
                     DECKELHOEHE={deckelhoehe}, KANALART={kanalart}, DRUCKDICHTERDECKEL={druckdichterdeckel},
@@ -224,18 +259,30 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     PLANUNGSSTATUS='{planungsstatus}', LASTMODIFIED='{lastmodified}',
                     DURCHMESSER={durchmesser}
                     WHERE NAME = '{name}';
-                """.format(deckelhoehe=deckelhoehe, kanalart='0', druckdichterdeckel='0',
-                           sohlhoehe=sohlhoehe, xkoordinate=xsch, ykoordinate=ysch,
-                           konstanterzufluss='0', gelaendehoehe=deckelhoehe, art='1', anzahlkanten='0',
-                           scheitelhoehe='0', planungsstatus='0', name=schnam, lastmodified=createdat,
-                           durchmesser=durchmesser)
+                """.format(
+                    deckelhoehe=deckelhoehe,
+                    kanalart="0",
+                    druckdichterdeckel="0",
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    konstanterzufluss="0",
+                    gelaendehoehe=deckelhoehe,
+                    art="1",
+                    anzahlkanten="0",
+                    scheitelhoehe="0",
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_schaechte (1)'):
+                if not dbHE.sql(sql, "dbHE: export_schaechte (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_schaechte']:
+            if check_export["export_schaechte"]:
                 # Trick: In Firebird ist kein SELECT ohne Tabelle möglich. Tabelle "RDB$DATABASE" hat genau 1 Datensatz
                 sql = """
                     INSERT INTO SCHACHT
@@ -248,13 +295,26 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       {scheitelhoehe}, '{planungsstatus}', '{name}', '{lastmodified}', {id}, {durchmesser}
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM SCHACHT);
-                """.format(deckelhoehe=deckelhoehe, kanalart='0', druckdichterdeckel='0',
-                           sohlhoehe=sohlhoehe, xkoordinate=xsch, ykoordinate=ysch,
-                           konstanterzufluss='0', gelaendehoehe=deckelhoehe, art='1', anzahlkanten='0',
-                           scheitelhoehe='0', planungsstatus='0', name=schnam, lastmodified=createdat,
-                           id=nextid, durchmesser=durchmesser)
+                """.format(
+                    deckelhoehe=deckelhoehe,
+                    kanalart="0",
+                    druckdichterdeckel="0",
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    konstanterzufluss="0",
+                    gelaendehoehe=deckelhoehe,
+                    art="1",
+                    anzahlkanten="0",
+                    scheitelhoehe="0",
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    id=nextid,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_schaechte (2)'):
+                if not dbHE.sql(sql, "dbHE: export_schaechte (2)"):
                     del dbQK
                     return False
 
@@ -263,7 +323,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Schaechte eingefuegt'.format(nextid - nr0), 0.30)
+        fortschritt("{} Schaechte eingefuegt".format(nextid - nr0), 0.30)
         progress_bar.setValue(30)
 
     # --------------------------------------------------------------------------------------------
@@ -272,11 +332,13 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     # Beim Export werden die IDs mitgeschrieben, um bei den Speicherkennlinien
     # wiederverwertet zu werden.
 
-    if check_export['export_speicher'] or check_export['modify_speicher']:
+    if check_export["export_speicher"] or check_export["modify_speicher"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " AND schaechte.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " AND schaechte.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -293,9 +355,11 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 createdat
             FROM schaechte
             WHERE schaechte.schachttyp = 'Speicher'{}
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_speicher'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_speicher"):
             del dbHE
             return False
 
@@ -303,36 +367,46 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         refid_speicher = {}
 
         for attr in dbQK.fetchall():
-            fortschritt('Export Speicherschaechte...', 0.35)
+            fortschritt("Export Speicherschaechte...", 0.35)
             progress_bar.setValue(35)
 
             # In allen Feldern None durch NULL ersetzen
-            (schnam, deckelhoehe_t, sohlhoehe_t, durchmesser_t, strasse, xsch_t, ysch_t, kommentar, createdat_t) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                schnam,
+                deckelhoehe_t,
+                sohlhoehe_t,
+                durchmesser_t,
+                strasse,
+                xsch_t,
+                ysch_t,
+                kommentar,
+                createdat_t,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = \
-                ('NULL' if tt == 'NULL' else '{:.3f}'.format(float(tt)) \
-                 for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t))
+            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = (
+                "NULL" if tt == "NULL" else "{:.3f}".format(float(tt))
+                for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t)
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Speichern der aktuellen ID zum Speicherbauwerk
             refid_speicher[schnam] = nextid
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_speicher']:
+            if check_export["modify_speicher"]:
                 sql = """
                     UPDATE SPEICHERSCHACHT SET
                     TYP={typ}, SOHLHOEHE={sohlhoehe},
@@ -343,20 +417,31 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       PLANUNGSSTATUS='{planungsstatus}',
                       LASTMODIFIED='{lastmodified}', KOMMENTAR='{kommentar}'
                       WHERE NAME='{name}';
-                """.format(typ='1', sohlhoehe=sohlhoehe,
-                           xkoordinate=xsch, ykoordinate=ysch,
-                           gelaendehoehe=deckelhoehe, art='1', anzahlkanten='0',
-                           scheitelhoehe=deckelhoehe, hoehevollfuellung=deckelhoehe,
-                           konstanterzufluss='0', absetzwirkung='0', planungsstatus='0',
-                           name=schnam, lastmodified=createdat, kommentar=kommentar,
-                           durchmesser=durchmesser)
+                """.format(
+                    typ="1",
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    gelaendehoehe=deckelhoehe,
+                    art="1",
+                    anzahlkanten="0",
+                    scheitelhoehe=deckelhoehe,
+                    hoehevollfuellung=deckelhoehe,
+                    konstanterzufluss="0",
+                    absetzwirkung="0",
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_speicher (1)'):
+                if not dbHE.sql(sql, "dbHE: export_speicher (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_speicher']:
+            if check_export["export_speicher"]:
                 # Trick: In Firebird ist kein SELECT ohne Tabelle möglich. Tabelle "RDB$DATABASE" hat genau 1 Datensatz
                 sql = """
                     INSERT INTO SPEICHERSCHACHT
@@ -375,15 +460,27 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       '{name}', '{lastmodified}', '{kommentar}'
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM SPEICHERSCHACHT);
-                """.format(id=nextid, typ='1', sohlhoehe=sohlhoehe,
-                           xkoordinate=xsch, ykoordinate=ysch,
-                           gelaendehoehe=deckelhoehe, art='1', anzahlkanten='0',
-                           scheitelhoehe=deckelhoehe, hoehevollfuellung=deckelhoehe,
-                           konstanterzufluss='0', absetzwirkung='0', planungsstatus='0',
-                           name=schnam, lastmodified=createdat, kommentar=kommentar,
-                           durchmesser=durchmesser)
+                """.format(
+                    id=nextid,
+                    typ="1",
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    gelaendehoehe=deckelhoehe,
+                    art="1",
+                    anzahlkanten="0",
+                    scheitelhoehe=deckelhoehe,
+                    hoehevollfuellung=deckelhoehe,
+                    konstanterzufluss="0",
+                    absetzwirkung="0",
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_speicher (2)'):
+                if not dbHE.sql(sql, "dbHE: export_speicher (2)"):
                     del dbQK
                     return False
 
@@ -392,19 +489,22 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Speicher eingefuegt'.format(nextid - nr0), 0.40)
+        fortschritt("{} Speicher eingefuegt".format(nextid - nr0), 0.40)
 
         # --------------------------------------------------------------------------------------------
         # Export der Kennlinien der Speicherbauwerke - nur wenn auch Speicher exportiert werden
 
-        if check_export['export_speicherkennlinien'] or check_export['modify_speicherkennlinien']:
+        if (
+            check_export["export_speicherkennlinien"]
+            or check_export["modify_speicherkennlinien"]
+        ):
 
             sql = """SELECT sl.schnam, sl.wspiegel - sc.sohlhoehe AS wtiefe, sl.oberfl
                       FROM speicherkennlinien AS sl
                       JOIN schaechte AS sc ON sl.schnam = sc.schnam
                       ORDER BY sc.schnam, sl.wspiegel"""
 
-            if not dbQK.sql(sql, 'dbQK: k_qkhe.export_speicherkennlinien'):
+            if not dbQK.sql(sql, "dbQK: k_qkhe.export_speicherkennlinien"):
                 del dbHE
                 return False
 
@@ -413,12 +513,12 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
             for attr in dbQK.fetchall():
 
                 # In allen Feldern None durch NULL ersetzen
-                (schnam, wtiefe, oberfl) = ('NULL' if el is None else el for el in attr)
+                (schnam, wtiefe, oberfl) = ("NULL" if el is None else el for el in attr)
 
                 # Einfuegen in die Datenbank
 
                 if schnam in refid_speicher:
-                    if spnam == 'NULL' or schnam != spnam:
+                    if spnam == "NULL" or schnam != spnam:
                         spnam = schnam
                         reihenfolge = 1
                     else:
@@ -428,7 +528,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     # Ändern vorhandener Datensätze entfällt bei Tabellendaten
 
                     # Einfuegen in die Datenbank
-                    if check_export['export_speicherkennlinien']:
+                    if check_export["export_speicherkennlinien"]:
                         # Trick: In Firebird ist kein SELECT ohne Tabelle möglich. Tabelle "RDB$DATABASE" hat genau 1 Datensatz
                         sql = """
                             INSERT INTO TABELLENINHALTE
@@ -436,26 +536,33 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                             SELECT
                               {wtiefe}, {oberfl}, {reihenfolge}, {id}
                             FROM RDB$DATABASE;
-                        """.format(wtiefe=wtiefe, oberfl=oberfl, reihenfolge=reihenfolge, id=refid_speicher[schnam])
+                        """.format(
+                            wtiefe=wtiefe,
+                            oberfl=oberfl,
+                            reihenfolge=reihenfolge,
+                            id=refid_speicher[schnam],
+                        )
                         # print(sql)
 
-                        if not dbHE.sql(sql, 'dbHE: export_speicherkennlinien'):
+                        if not dbHE.sql(sql, "dbHE: export_speicherkennlinien"):
                             del dbQK
                             return False
 
             dbHE.commit()
 
-            fortschritt('{} Speicher eingefuegt'.format(nextid - nr0), 0.40)
+            fortschritt("{} Speicher eingefuegt".format(nextid - nr0), 0.40)
     progress_bar.setValue(45)
 
     # --------------------------------------------------------------------------------------------
     # Export der Auslaesse
 
-    if check_export['export_auslaesse'] or check_export['modify_auslaesse']:
+    if check_export["export_auslaesse"] or check_export["modify_auslaesse"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " AND schaechte.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " AND schaechte.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -471,42 +578,53 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 createdat
             FROM schaechte
             WHERE schaechte.schachttyp = 'Auslass'{}
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_auslaesse'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_auslaesse"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Auslässe...', 0.20)
+        fortschritt("Export Auslässe...", 0.20)
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (schnam, deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t, kommentar, createdat_t) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                schnam,
+                deckelhoehe_t,
+                sohlhoehe_t,
+                durchmesser_t,
+                xsch_t,
+                ysch_t,
+                kommentar,
+                createdat_t,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = \
-                ('NULL' if tt == 'NULL' else '{:.3f}'.format(float(tt)) \
-                 for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t))
+            (deckelhoehe, sohlhoehe, durchmesser, xsch, ysch) = (
+                "NULL" if tt == "NULL" else "{:.3f}".format(float(tt))
+                for tt in (deckelhoehe_t, sohlhoehe_t, durchmesser_t, xsch_t, ysch_t)
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_auslaesse']:
+            if check_export["modify_auslaesse"]:
                 sql = """
                     UPDATE AUSLASS SET
                     TYP={typ}, RUECKSCHLAGKLAPPE={rueckschlagklappe},
@@ -516,19 +634,30 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     PLANUNGSSTATUS='{planungsstatus}',
                     LASTMODIFIED='{lastmodified}', KOMMENTAR='{kommentar}'
                     WHERE NAME = '{name}';
-                """.format(typ='1', rueckschlagklappe=0, sohlhoehe=sohlhoehe,
-                           xkoordinate=xsch, ykoordinate=ysch,
-                           gelaendehoehe=deckelhoehe, art='3', anzahlkanten='0',
-                           scheitelhoehe=deckelhoehe, konstanterzufluss=0, planungsstatus='0',
-                           name=schnam, lastmodified=createdat, kommentar=kommentar,
-                           durchmesser=durchmesser)
+                """.format(
+                    typ="1",
+                    rueckschlagklappe=0,
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    gelaendehoehe=deckelhoehe,
+                    art="3",
+                    anzahlkanten="0",
+                    scheitelhoehe=deckelhoehe,
+                    konstanterzufluss=0,
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_auslaesse (1)'):
+                if not dbHE.sql(sql, "dbHE: export_auslaesse (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_auslaesse']:
+            if check_export["export_auslaesse"]:
                 sql = """
                     INSERT INTO AUSLASS
                     ( ID, TYP, RUECKSCHLAGKLAPPE, SOHLHOEHE,
@@ -544,14 +673,26 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       '{name}', '{lastmodified}', '{kommentar}'
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM AUSLASS);
-                """.format(id=nextid, typ='1', rueckschlagklappe=0, sohlhoehe=sohlhoehe,
-                           xkoordinate=xsch, ykoordinate=ysch,
-                           gelaendehoehe=deckelhoehe, art='3', anzahlkanten='0',
-                           scheitelhoehe=deckelhoehe, konstanterzufluss=0, planungsstatus='0',
-                           name=schnam, lastmodified=createdat, kommentar=kommentar,
-                           durchmesser=durchmesser)
+                """.format(
+                    id=nextid,
+                    typ="1",
+                    rueckschlagklappe=0,
+                    sohlhoehe=sohlhoehe,
+                    xkoordinate=xsch,
+                    ykoordinate=ysch,
+                    gelaendehoehe=deckelhoehe,
+                    art="3",
+                    anzahlkanten="0",
+                    scheitelhoehe=deckelhoehe,
+                    konstanterzufluss=0,
+                    planungsstatus="0",
+                    name=schnam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                    durchmesser=durchmesser,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_auslaesse (2)'):
+                if not dbHE.sql(sql, "dbHE: export_auslaesse (2)"):
                     del dbQK
                     return False
 
@@ -560,18 +701,20 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Auslässe eingefuegt'.format(nextid - nr0), 0.40)
+        fortschritt("{} Auslässe eingefuegt".format(nextid - nr0), 0.40)
     progress_bar.setValue(50)
 
     # --------------------------------------------------------------------------------------------
     # Export der Pumpen
     #
 
-    if check_export['export_pumpen'] or check_export['modify_pumpen']:
+    if check_export["export_pumpen"] or check_export["modify_pumpen"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " WHERE pumpen.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " WHERE pumpen.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -592,43 +735,55 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
             ON pumpen.pumpentyp = pumpentypen.bezeichnung
             LEFT JOIN simulationsstatus
             ON pumpen.simstatus = simulationsstatus.bezeichnung{}
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_pumpen'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_pumpen"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Pumpen...', 0.60)
+        fortschritt("Export Pumpen...", 0.60)
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (pnam, schoben, schunten, pumpentypnr, steuersch, 
-             einschalthoehe_t, ausschalthoehe_t, simstatusnr, kommentar, createdat) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                pnam,
+                schoben,
+                schunten,
+                pumpentypnr,
+                steuersch,
+                einschalthoehe_t,
+                ausschalthoehe_t,
+                simstatusnr,
+                kommentar,
+                createdat,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (einschalthoehe, ausschalthoehe) = \
-                ('NULL' if tt == 'NULL' else '{:.3f}'.format(float(tt)) \
-                 for tt in (einschalthoehe_t, ausschalthoehe_t))
+            (einschalthoehe, ausschalthoehe) = (
+                "NULL" if tt == "NULL" else "{:.3f}".format(float(tt))
+                for tt in (einschalthoehe_t, ausschalthoehe_t)
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_pumpen']:
+            if check_export["modify_pumpen"]:
                 sql = """
                     UPDATE PUMPE SET
                     TYP={typ}, SCHACHTOBEN='{schoben}', SCHACHTUNTEN='{schunten}', 
@@ -637,18 +792,25 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     AUSSCHALTHOEHE={ausschalthoehe}, PLANUNGSSTATUS={simstatusnr},
                     LASTMODIFIED='{lastmodified}', KOMMENTAR='{kommentar}'
                     WHERE NAME = '{name}';
-                """.format(name=pnam, typ=pumpentypnr, schoben=schoben, schunten=schunten,
-                           steuersch=steuersch,
-                           einschalthoehe=einschalthoehe, ausschalthoehe=ausschalthoehe,
-                           simstatusnr=simstatusnr,
-                           lastmodified=createdat, kommentar=kommentar)
+                """.format(
+                    name=pnam,
+                    typ=pumpentypnr,
+                    schoben=schoben,
+                    schunten=schunten,
+                    steuersch=steuersch,
+                    einschalthoehe=einschalthoehe,
+                    ausschalthoehe=ausschalthoehe,
+                    simstatusnr=simstatusnr,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_pumpen (1)'):
+                if not dbHE.sql(sql, "dbHE: export_pumpen (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_pumpen']:
+            if check_export["export_pumpen"]:
                 sql = """
                     INSERT INTO PUMPE
                     ( ID, NAME, TYP, SCHACHTOBEN, SCHACHTUNTEN, 
@@ -662,13 +824,21 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       '{lastmodified}', '{kommentar}'
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM PUMPE);
-                """.format(id=nextid, name=pnam, typ=pumpentypnr, schoben=schoben, schunten=schunten, 
-                           steuersch=steuersch, 
-                           einschalthoehe=einschalthoehe, ausschalthoehe=ausschalthoehe,
-                           simstatusnr=simstatusnr,
-                           lastmodified=createdat, kommentar=kommentar)
+                """.format(
+                    id=nextid,
+                    name=pnam,
+                    typ=pumpentypnr,
+                    schoben=schoben,
+                    schunten=schunten,
+                    steuersch=steuersch,
+                    einschalthoehe=einschalthoehe,
+                    ausschalthoehe=ausschalthoehe,
+                    simstatusnr=simstatusnr,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_pumpen (2)'):
+                if not dbHE.sql(sql, "dbHE: export_pumpen (2)"):
                     del dbQK
                     return False
 
@@ -677,18 +847,20 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Pumpen eingefuegt'.format(nextid - nr0), 0.40)
+        fortschritt("{} Pumpen eingefuegt".format(nextid - nr0), 0.40)
     progress_bar.setValue(60)
 
     # --------------------------------------------------------------------------------------------
     # Export der Wehre
     #
 
-    if check_export['export_wehre'] or check_export['modify_wehre']:
+    if check_export["export_wehre"] or check_export["modify_wehre"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " WHERE wehre.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " WHERE wehre.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -713,46 +885,64 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
             ON wehre.schoben = sob.schnam
             LEFT JOIN schaechte AS sun 
             ON wehre.schunten = sun.schnam{}
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_wehre'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_wehre"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Wehre...', 0.65)
+        fortschritt("Export Wehre...", 0.65)
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (wnam, schoben, schunten, sohleoben_t, sohleunten_t, schwellenhoehe_t, kammerhoehe_t,
-             laenge_t, uebeiwert_t, simstatusnr, 
-             kommentar, createdat) = \
-            ('NULL' if el is None else el for el in attr)
+            (
+                wnam,
+                schoben,
+                schunten,
+                sohleoben_t,
+                sohleunten_t,
+                schwellenhoehe_t,
+                kammerhoehe_t,
+                laenge_t,
+                uebeiwert_t,
+                simstatusnr,
+                kommentar,
+                createdat,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (sohleoben, sohleunten, schwellenhoehe, 
-                    kammerhoehe, laenge, uebeiwert) = \
-                ('NULL' if tt == 'NULL' else '{:.3f}'.format(float(tt)) \
-                 for tt in (sohleoben_t, sohleunten_t, schwellenhoehe_t, 
-                             kammerhoehe_t, laenge_t, uebeiwert_t))
+            (sohleoben, sohleunten, schwellenhoehe, kammerhoehe, laenge, uebeiwert) = (
+                "NULL" if tt == "NULL" else "{:.3f}".format(float(tt))
+                for tt in (
+                    sohleoben_t,
+                    sohleunten_t,
+                    schwellenhoehe_t,
+                    kammerhoehe_t,
+                    laenge_t,
+                    uebeiwert_t,
+                )
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_wehre']:
+            if check_export["modify_wehre"]:
                 sql = """
                     UPDATE WEHR SET
                     TYP=1, SCHWELLENHOEHE={schwellenhoehe},	UEBERFALLBEIWERT={uebeiwert},
@@ -762,19 +952,28 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     PLANUNGSSTATUS={simstatusnr},
                     LASTMODIFIED='{lastmodified}', KOMMENTAR='{kommentar}'
                     WHERE NAME = '{name}';
-                """.format(name=wnam, typ=1, schoben=schoben, schunten=schunten,
-                           sohleoben=sohleoben, sohleunten=sohleunten, 
-                           schwellenhoehe=schwellenhoehe, kammerhoehe=kammerhoehe, 
-                           laenge=laenge, uebeiwert=uebeiwert,
-                           simstatusnr=simstatusnr,
-                           lastmodified=createdat, kommentar=kommentar)
+                """.format(
+                    name=wnam,
+                    typ=1,
+                    schoben=schoben,
+                    schunten=schunten,
+                    sohleoben=sohleoben,
+                    sohleunten=sohleunten,
+                    schwellenhoehe=schwellenhoehe,
+                    kammerhoehe=kammerhoehe,
+                    laenge=laenge,
+                    uebeiwert=uebeiwert,
+                    simstatusnr=simstatusnr,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_wehre (1)'):
+                if not dbHE.sql(sql, "dbHE: export_wehre (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_wehre']:
+            if check_export["export_wehre"]:
                 sql = """
                     INSERT INTO WEHR
                     (ID, NAME, TYP, SCHACHTOBEN, SCHACHTUNTEN, 
@@ -798,17 +997,32 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       '{lastmodified}', '{kommentar}'
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM WEHR);
-                """.format(id=nextid, name=wnam, typ= 1 , schoben=schoben, schunten=schunten,
-                           sohleoben=sohleoben, sohleunten=sohleunten, 
-                           schwellenhoehe=schwellenhoehe, kammerhoehe=kammerhoehe, 
-                           laenge=laenge, uebeiwert=uebeiwert, 
-                           rueckschlagklappe=0, verfahrbar=0, profiltyp=52, 
-                           ereignisbilanzierung=0, ereignisgrenzwertende=0,
-                           ereignisgrenzwertanfang=0, ereignistrenndauer=0,
-                           ereignisindividuell=0, simstatusnr=simstatusnr,
-                           lastmodified=createdat, kommentar=kommentar)
+                """.format(
+                    id=nextid,
+                    name=wnam,
+                    typ=1,
+                    schoben=schoben,
+                    schunten=schunten,
+                    sohleoben=sohleoben,
+                    sohleunten=sohleunten,
+                    schwellenhoehe=schwellenhoehe,
+                    kammerhoehe=kammerhoehe,
+                    laenge=laenge,
+                    uebeiwert=uebeiwert,
+                    rueckschlagklappe=0,
+                    verfahrbar=0,
+                    profiltyp=52,
+                    ereignisbilanzierung=0,
+                    ereignisgrenzwertende=0,
+                    ereignisgrenzwertanfang=0,
+                    ereignistrenndauer=0,
+                    ereignisindividuell=0,
+                    simstatusnr=simstatusnr,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_wehre (2)'):
+                if not dbHE.sql(sql, "dbHE: export_wehre (2)"):
                     del dbQK
                     return False
 
@@ -817,7 +1031,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Wehre eingefuegt'.format(nextid - nr0), 0.40)
+        fortschritt("{} Wehre eingefuegt".format(nextid - nr0), 0.40)
     progress_bar.setValue(60)
 
     # --------------------------------------------------------------------------------------------
@@ -828,11 +1042,13 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     # in HYSTEM-EXTRAN in der Karteikarte "Haltungen > Trockenwetter". Solange dort kein
     # Siedlungstyp zugeordnet ist, wird diese Fläche nicht wirksam und dient nur der Information!
 
-    if check_export['export_haltungen'] or check_export['modify_haltungen']:
+    if check_export["export_haltungen"] or check_export["modify_haltungen"]:
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl = " AND haltungen.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " AND haltungen.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -853,71 +1069,88 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
               LEFT JOIN entwaesserungsarten ON haltungen.entwart = entwaesserungsarten.bezeichnung
               LEFT JOIN simulationsstatus AS st ON haltungen.simstatus = st.bezeichnung
               WHERE (st.he_nr IN ('0', '1', '2') or st.he_nr IS NULL){:}
-        """.format(auswahl)
+        """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_haltungen'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_haltungen"):
             del dbHE
             return False
 
-        fortschritt('Export Haltungen...', 0.35)
+        fortschritt("Export Haltungen...", 0.35)
 
         nr0 = nextid
 
         # Varianten abhängig von HE-Version
-        if versionolder(heDBVersion[0:2], ['7', '8'], 2):
-            logger.debug('Version vor 7.8 erkannt')
-            fieldsnew = ''
-            attrsnew = ''
-            valuesnew = ''
-        elif versionolder(heDBVersion[0:2], ['7', '9'], 2):
-            logger.debug('Version vor 7.9 erkannt')
-            fieldsnew = ', EINZUGSGEBIET = 0, KONSTANTERZUFLUSSTEZG = 0'
-            attrsnew =  ', EINZUGSGEBIET, KONSTANTERZUFLUSSTEZG'
-            valuesnew = ', 0, 0'
+        if versionolder(heDBVersion[0:2], ["7", "8"], 2):
+            logger.debug("Version vor 7.8 erkannt")
+            fieldsnew = ""
+            attrsnew = ""
+            valuesnew = ""
+        elif versionolder(heDBVersion[0:2], ["7", "9"], 2):
+            logger.debug("Version vor 7.9 erkannt")
+            fieldsnew = ", EINZUGSGEBIET = 0, KONSTANTERZUFLUSSTEZG = 0"
+            attrsnew = ", EINZUGSGEBIET, KONSTANTERZUFLUSSTEZG"
+            valuesnew = ", 0, 0"
         else:
-            logger.debug('Version 7.9 erkannt')
-            fieldsnew = ', EINZUGSGEBIET = 0, KONSTANTERZUFLUSSTEZG = 0, BEFESTIGTEFLAECHE = 0, UNBEFESTIGTEFLAECHE = 0'
-            attrsnew =  ', EINZUGSGEBIET, KONSTANTERZUFLUSSTEZG, BEFESTIGTEFLAECHE, UNBEFESTIGTEFLAECHE'
-            valuesnew = ', 0, 0, 0, 0'
+            logger.debug("Version 7.9 erkannt")
+            fieldsnew = ", EINZUGSGEBIET = 0, KONSTANTERZUFLUSSTEZG = 0, BEFESTIGTEFLAECHE = 0, UNBEFESTIGTEFLAECHE = 0"
+            attrsnew = ", EINZUGSGEBIET, KONSTANTERZUFLUSSTEZG, BEFESTIGTEFLAECHE, UNBEFESTIGTEFLAECHE"
+            valuesnew = ", 0, 0, 0, 0"
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (haltnam, schoben, schunten, laenge_t, sohleoben_t, sohleunten_t, profilnam,
-             he_nr, hoehe_t, breite_t, entw_nr, rohrtyp, rauheit_t, teilgebiet, createdat_t) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                haltnam,
+                schoben,
+                schunten,
+                laenge_t,
+                sohleoben_t,
+                sohleunten_t,
+                profilnam,
+                he_nr,
+                hoehe_t,
+                breite_t,
+                entw_nr,
+                rohrtyp,
+                rauheit_t,
+                teilgebiet,
+                createdat_t,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Datenkorrekturen
-            (laenge, sohleoben, sohleunten, hoehe, breite) = \
-                ('NULL' if tt == 'NULL' else '{:.4f}'.format(float(tt)) \
-                 for tt in (laenge_t, sohleoben_t, sohleunten_t, hoehe_t, breite_t))
+            (laenge, sohleoben, sohleunten, hoehe, breite) = (
+                "NULL" if tt == "NULL" else "{:.4f}".format(float(tt))
+                for tt in (laenge_t, sohleoben_t, sohleunten_t, hoehe_t, breite_t)
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
-            if rauheit_t == 'NULL':
-                rauheit = '1.5'
+            if rauheit_t == "NULL":
+                rauheit = "1.5"
             else:
-                rauheit = '{:.3f}'.format(float(rauheit_t))
+                rauheit = "{:.3f}".format(float(rauheit_t))
 
                 h_profil = he_nr
-            if h_profil == '68':
+            if h_profil == "68":
                 h_sonderprofil = profilnam
             else:
-                h_sonderprofil = ''
+                h_sonderprofil = ""
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_haltungen']:
+            if check_export["modify_haltungen"]:
                 # Profile < 0 werden nicht uebertragen
                 if int(h_profil) > 0:
                     sql = """
@@ -941,28 +1174,47 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       EREIGNISTRENNDAUER={ereignistrenndauer}, 
                       EREIGNISINDIVIDUELL={ereignisindividuell}{fieldsnew}
                       WHERE NAME = '{name}';
-                      """.format(name=haltnam, schachtoben=schoben, schachtunten=schunten,
-                                 laenge=laenge, sohlhoeheoben=sohleoben,
-                                 sohlhoeheunten=sohleunten, profiltyp=h_profil,
-                                 sonderprofilbezeichnung=h_sonderprofil, geometrie1=hoehe,
-                                 geometrie2=breite, kanalart=entw_nr,
-                                 rauigkeitsbeiwert=1.5, anzahl=1, teileinzugsgebiet='',
-                                 rueckschlagklappe=0, konstanterzufluss=0,
-                                 rauigkeitsansatz=1, gefaelle=0,
-                                 gesamtflaeche=0, abflussart=0,
-                                 individualkonzept=0, hydraulischerradius=0,
-                                 rauhigkeitanzeige=1.5, planungsstatus=0,
-                                 lastmodified=createdat, materialart=28,
-                                 ereignisbilanzierung=0, ereignisgrenzwertende=0,
-                                 ereignisgrenzwertanfang=0, ereignistrenndauer=0,
-                                 ereignisindividuell=0, fieldsnew = fieldsnew)
+                      """.format(
+                        name=haltnam,
+                        schachtoben=schoben,
+                        schachtunten=schunten,
+                        laenge=laenge,
+                        sohlhoeheoben=sohleoben,
+                        sohlhoeheunten=sohleunten,
+                        profiltyp=h_profil,
+                        sonderprofilbezeichnung=h_sonderprofil,
+                        geometrie1=hoehe,
+                        geometrie2=breite,
+                        kanalart=entw_nr,
+                        rauigkeitsbeiwert=1.5,
+                        anzahl=1,
+                        teileinzugsgebiet="",
+                        rueckschlagklappe=0,
+                        konstanterzufluss=0,
+                        rauigkeitsansatz=1,
+                        gefaelle=0,
+                        gesamtflaeche=0,
+                        abflussart=0,
+                        individualkonzept=0,
+                        hydraulischerradius=0,
+                        rauhigkeitanzeige=1.5,
+                        planungsstatus=0,
+                        lastmodified=createdat,
+                        materialart=28,
+                        ereignisbilanzierung=0,
+                        ereignisgrenzwertende=0,
+                        ereignisgrenzwertanfang=0,
+                        ereignistrenndauer=0,
+                        ereignisindividuell=0,
+                        fieldsnew=fieldsnew,
+                    )
 
-                    if not dbHE.sql(sql, 'dbHE: export_haltungen (1)'):
+                    if not dbHE.sql(sql, "dbHE: export_haltungen (1)"):
                         del dbQK
                         return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_haltungen']:
+            if check_export["export_haltungen"]:
                 # Profile < 0 werden nicht uebertragen
                 if int(h_profil) > 0:
                     sql = """
@@ -987,23 +1239,46 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                         {ereignisindividuell}, {id}{valuesnew}
                       FROM RDB$DATABASE
                       WHERE '{name}' NOT IN (SELECT NAME FROM ROHR);
-                      """.format(name=haltnam, schachtoben=schoben, schachtunten=schunten,
-                                 laenge=laenge, sohlhoeheoben=sohleoben,
-                                 sohlhoeheunten=sohleunten, profiltyp=h_profil,
-                                 sonderprofilbezeichnung=h_sonderprofil, geometrie1=hoehe,
-                                 geometrie2=breite, kanalart=entw_nr,
-                                 rauigkeitsbeiwert=1.5, anzahl=1, teileinzugsgebiet='',
-                                 rueckschlagklappe=0, konstanterzufluss=0,
-                                 rauigkeitsansatz=1, gefaelle=0,
-                                 gesamtflaeche=0, abflussart=0, befestigte_flaeche=0, unbefestigte_flaeche=0, 
-                                 individualkonzept=0, hydraulischerradius=0,
-                                 rauhigkeitanzeige=1.5, planungsstatus=0,
-                                 lastmodified=createdat, materialart=28,
-                                 ereignisbilanzierung=0, ereignisgrenzwertende=0,
-                                 ereignisgrenzwertanfang=0, ereignistrenndauer=0,
-                                 ereignisindividuell=0, id=nextid, attrsnew = attrsnew, valuesnew = valuesnew)
+                      """.format(
+                        name=haltnam,
+                        schachtoben=schoben,
+                        schachtunten=schunten,
+                        laenge=laenge,
+                        sohlhoeheoben=sohleoben,
+                        sohlhoeheunten=sohleunten,
+                        profiltyp=h_profil,
+                        sonderprofilbezeichnung=h_sonderprofil,
+                        geometrie1=hoehe,
+                        geometrie2=breite,
+                        kanalart=entw_nr,
+                        rauigkeitsbeiwert=1.5,
+                        anzahl=1,
+                        teileinzugsgebiet="",
+                        rueckschlagklappe=0,
+                        konstanterzufluss=0,
+                        rauigkeitsansatz=1,
+                        gefaelle=0,
+                        gesamtflaeche=0,
+                        abflussart=0,
+                        befestigte_flaeche=0,
+                        unbefestigte_flaeche=0,
+                        individualkonzept=0,
+                        hydraulischerradius=0,
+                        rauhigkeitanzeige=1.5,
+                        planungsstatus=0,
+                        lastmodified=createdat,
+                        materialart=28,
+                        ereignisbilanzierung=0,
+                        ereignisgrenzwertende=0,
+                        ereignisgrenzwertanfang=0,
+                        ereignistrenndauer=0,
+                        ereignisindividuell=0,
+                        id=nextid,
+                        attrsnew=attrsnew,
+                        valuesnew=valuesnew,
+                    )
 
-                    if not dbHE.sql(sql, 'dbHE: export_haltungen (2)'):
+                    if not dbHE.sql(sql, "dbHE: export_haltungen (2)"):
                         del dbQK
                         return False
 
@@ -1011,13 +1286,13 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Haltungen eingefuegt'.format(nextid - nr0), 0.60)
+        fortschritt("{} Haltungen eingefuegt".format(nextid - nr0), 0.60)
     progress_bar.setValue(70)
 
     # --------------------------------------------------------------------------------------------
     # Export der Bodenklassen
 
-    if check_export['export_bodenklassen'] or check_export['modify_bodenklassen']:
+    if check_export["export_bodenklassen"] or check_export["modify_bodenklassen"]:
 
         sql = """
             SELECT
@@ -1031,9 +1306,11 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 createdat AS createdat,
                 kommentar AS kommentar
             FROM bodenklassen
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_bodenklassen'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_bodenklassen"):
             del dbHE
             return False
 
@@ -1042,30 +1319,37 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (bknam, infiltrationsrateanfang, infiltrationsrateende, infiltrationsratestart,
-             rueckgangskonstante, regenerationskonstante, saettigungswassergehalt,
-             createdat_t, kommentar) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                bknam,
+                infiltrationsrateanfang,
+                infiltrationsrateende,
+                infiltrationsratestart,
+                rueckgangskonstante,
+                regenerationskonstante,
+                saettigungswassergehalt,
+                createdat_t,
+                kommentar,
+            ) = ("NULL" if el is None else el for el in attr)
 
-            # Der leere Satz Bodenklasse ist nur für interne QKan-Zwecke da. 
-            if bknam == 'NULL':
+            # Der leere Satz Bodenklasse ist nur für interne QKan-Zwecke da.
+            if bknam == "NULL":
                 continue
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_bodenklassen']:
+            if check_export["modify_bodenklassen"]:
                 sql = """
                     UPDATE BODENKLASSE SET
                     INFILTRATIONSRATEANFANG={infiltrationsrateanfang},
@@ -1077,21 +1361,24 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     LASTMODIFIED='{lastmodified}',
                     KOMMENTAR='{kommentar}'
                     WHERE NAME = '{name}';
-                    """.format(infiltrationsrateanfang=infiltrationsrateanfang,
-                               infiltrationsrateende=infiltrationsrateende,
-                               infiltrationsratestart=infiltrationsratestart,
-                               rueckgangskonstante=rueckgangskonstante,
-                               regenerationskonstante=regenerationskonstante,
-                               saettigungswassergehalt=saettigungswassergehalt,
-                               name=bknam, lastmodified=createdat,
-                               kommentar=kommentar)
+                    """.format(
+                    infiltrationsrateanfang=infiltrationsrateanfang,
+                    infiltrationsrateende=infiltrationsrateende,
+                    infiltrationsratestart=infiltrationsratestart,
+                    rueckgangskonstante=rueckgangskonstante,
+                    regenerationskonstante=regenerationskonstante,
+                    saettigungswassergehalt=saettigungswassergehalt,
+                    name=bknam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_bodenklassen (1)'):
+                if not dbHE.sql(sql, "dbHE: export_bodenklassen (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_bodenklassen']:
+            if check_export["export_bodenklassen"]:
                 sql = """
                   INSERT INTO BODENKLASSE
                   ( INFILTRATIONSRATEANFANG, INFILTRATIONSRATEENDE,
@@ -1103,16 +1390,20 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     {saettigungswassergehalt}, '{name}', '{lastmodified}', '{kommentar}', {id}
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM BODENKLASSE);
-                    """.format(infiltrationsrateanfang=infiltrationsrateanfang,
-                               infiltrationsrateende=infiltrationsrateende,
-                               infiltrationsratestart=infiltrationsratestart,
-                               rueckgangskonstante=rueckgangskonstante,
-                               regenerationskonstante=regenerationskonstante,
-                               saettigungswassergehalt=saettigungswassergehalt,
-                               name=bknam, lastmodified=createdat,
-                               kommentar=kommentar, id=nextid)
+                    """.format(
+                    infiltrationsrateanfang=infiltrationsrateanfang,
+                    infiltrationsrateende=infiltrationsrateende,
+                    infiltrationsratestart=infiltrationsratestart,
+                    rueckgangskonstante=rueckgangskonstante,
+                    regenerationskonstante=regenerationskonstante,
+                    saettigungswassergehalt=saettigungswassergehalt,
+                    name=bknam,
+                    lastmodified=createdat,
+                    kommentar=kommentar,
+                    id=nextid,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_bodenklassen (2)'):
+                if not dbHE.sql(sql, "dbHE: export_bodenklassen (2)"):
                     del dbQK
                     return False
 
@@ -1121,13 +1412,16 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Bodenklassen eingefuegt'.format(nextid - nr0), 0.62)
+        fortschritt("{} Bodenklassen eingefuegt".format(nextid - nr0), 0.62)
     progress_bar.setValue(80)
 
     # --------------------------------------------------------------------------------------------
     # Export der Abflussparameter
 
-    if check_export['export_abflussparameter'] or check_export['modify_abflussparameter']:
+    if (
+        check_export["export_abflussparameter"]
+        or check_export["modify_abflussparameter"]
+    ):
 
         sql = """
             SELECT
@@ -1140,53 +1434,75 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 mulden_startwert AS mulden_startwert_t,
                 bodenklasse, kommentar, createdat
             FROM abflussparameter
-            """.format(auswahl)
+            """.format(
+            auswahl
+        )
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_abflussparameter'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_abflussparameter"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Abflussparameter...', .7)
+        fortschritt("Export Abflussparameter...", 0.7)
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (apnam, anfangsabflussbeiwert_t, endabflussbeiwert_t,
-             benetzungsverlust_t, muldenverlust_t, benetzung_startwert_t,
-             mulden_startwert_t, bodenklasse, kommentar, createdat_t) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                apnam,
+                anfangsabflussbeiwert_t,
+                endabflussbeiwert_t,
+                benetzungsverlust_t,
+                muldenverlust_t,
+                benetzung_startwert_t,
+                mulden_startwert_t,
+                bodenklasse,
+                kommentar,
+                createdat_t,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Formatierung der Zahlen
-            (anfangsabflussbeiwert, endabflussbeiwert, benetzungsverlust,
-             muldenverlust, benetzung_startwert, mulden_startwert) = \
-                ('NULL' if tt == 'NULL' else '{:.2f}'.format(float(tt)) \
-                 for tt in (anfangsabflussbeiwert_t, endabflussbeiwert_t,
-                            benetzungsverlust_t, muldenverlust_t, benetzung_startwert_t,
-                            mulden_startwert_t))
+            (
+                anfangsabflussbeiwert,
+                endabflussbeiwert,
+                benetzungsverlust,
+                muldenverlust,
+                benetzung_startwert,
+                mulden_startwert,
+            ) = (
+                "NULL" if tt == "NULL" else "{:.2f}".format(float(tt))
+                for tt in (
+                    anfangsabflussbeiwert_t,
+                    endabflussbeiwert_t,
+                    benetzungsverlust_t,
+                    muldenverlust_t,
+                    benetzung_startwert_t,
+                    mulden_startwert_t,
+                )
+            )
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
-            if bodenklasse == 'NULL':
+            if bodenklasse == "NULL":
                 typ = 0  # undurchlässig
-                bodenklasse = ''
+                bodenklasse = ""
             else:
                 typ = 1  # durchlässig
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_abflussparameter']:
+            if check_export["modify_abflussparameter"]:
                 sql = """
                   UPDATE ABFLUSSPARAMETER SET
                   ABFLUSSBEIWERTANFANG={anfangsabflussbeiwert},
@@ -1203,21 +1519,35 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                   TYP={typ}, JAHRESGANGVERLUSTE={jahresgangverluste}, LASTMODIFIED='{createdat}',
                   KOMMENTAR='{kommentar}'
                   WHERE NAME = '{apnam}';
-                """.format(apnam=apnam, anfangsabflussbeiwert=anfangsabflussbeiwert,
-                           endabflussbeiwert=endabflussbeiwert, benetzungsverlust=benetzungsverlust,
-                           muldenverlust=muldenverlust, benetzung_startwert=benetzung_startwert,
-                           mulden_startwert=mulden_startwert, speicherkonstantekonstant=1,
-                           speicherkonstantemin=0, speicherkonstantemax=0, speicherkonstantekonstant2=1,
-                           speicherkonstantemin2=0, speicherkonstantemax2=0,
-                           bodenklasse=bodenklasse, charakteristischeregenspende=0, charakteristischeregenspende2=0,
-                           typ=typ, jahresgangverluste=0, createdat=createdat, kommentar=kommentar)
+                """.format(
+                    apnam=apnam,
+                    anfangsabflussbeiwert=anfangsabflussbeiwert,
+                    endabflussbeiwert=endabflussbeiwert,
+                    benetzungsverlust=benetzungsverlust,
+                    muldenverlust=muldenverlust,
+                    benetzung_startwert=benetzung_startwert,
+                    mulden_startwert=mulden_startwert,
+                    speicherkonstantekonstant=1,
+                    speicherkonstantemin=0,
+                    speicherkonstantemax=0,
+                    speicherkonstantekonstant2=1,
+                    speicherkonstantemin2=0,
+                    speicherkonstantemax2=0,
+                    bodenklasse=bodenklasse,
+                    charakteristischeregenspende=0,
+                    charakteristischeregenspende2=0,
+                    typ=typ,
+                    jahresgangverluste=0,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_abflussparameter (1)'):
+                if not dbHE.sql(sql, "dbHE: export_abflussparameter (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_abflussparameter']:
+            if check_export["export_abflussparameter"]:
                 sql = """
                   INSERT INTO ABFLUSSPARAMETER
                   ( NAME, ABFLUSSBEIWERTANFANG, ABFLUSSBEIWERTENDE, BENETZUNGSVERLUST,
@@ -1235,16 +1565,31 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     {typ}, {jahresgangverluste}, '{createdat}', '{kommentar}', {id}
                   FROM RDB$DATABASE
                   WHERE '{apnam}' NOT IN (SELECT NAME FROM ABFLUSSPARAMETER);
-                """.format(apnam=apnam, anfangsabflussbeiwert=anfangsabflussbeiwert,
-                           endabflussbeiwert=endabflussbeiwert, benetzungsverlust=benetzungsverlust,
-                           muldenverlust=muldenverlust, benetzung_startwert=benetzung_startwert,
-                           mulden_startwert=mulden_startwert, speicherkonstantekonstant=1,
-                           speicherkonstantemin=0, speicherkonstantemax=0, speicherkonstantekonstant2=1,
-                           speicherkonstantemin2=0, speicherkonstantemax2=0,
-                           bodenklasse=bodenklasse, charakteristischeregenspende=0, charakteristischeregenspende2=0,
-                           typ=typ, jahresgangverluste=0, createdat=createdat, kommentar=kommentar, id=nextid)
+                """.format(
+                    apnam=apnam,
+                    anfangsabflussbeiwert=anfangsabflussbeiwert,
+                    endabflussbeiwert=endabflussbeiwert,
+                    benetzungsverlust=benetzungsverlust,
+                    muldenverlust=muldenverlust,
+                    benetzung_startwert=benetzung_startwert,
+                    mulden_startwert=mulden_startwert,
+                    speicherkonstantekonstant=1,
+                    speicherkonstantemin=0,
+                    speicherkonstantemax=0,
+                    speicherkonstantekonstant2=1,
+                    speicherkonstantemin2=0,
+                    speicherkonstantemax2=0,
+                    bodenklasse=bodenklasse,
+                    charakteristischeregenspende=0,
+                    charakteristischeregenspende2=0,
+                    typ=typ,
+                    jahresgangverluste=0,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                    id=nextid,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_abflussparameter (2)'):
+                if not dbHE.sql(sql, "dbHE: export_abflussparameter (2)"):
                     del dbQK
                     return False
 
@@ -1253,7 +1598,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Abflussparameter eingefuegt'.format(nextid - nr0), 0.65)
+        fortschritt("{} Abflussparameter eingefuegt".format(nextid - nr0), 0.65)
     progress_bar.setValue(85)
 
     # ------------------------------------------------------------------------------------------------
@@ -1261,7 +1606,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
     #
     # Wenn in QKan keine Regenschreiber eingetragen sind, wird als Name "Regenschreiber1" angenommen.
 
-    if check_export['export_regenschreiber'] or check_export['modify_regenschreiber']:
+    if check_export["export_regenschreiber"] or check_export["modify_regenschreiber"]:
 
         # # Pruefung, ob Regenschreiber fuer Export vorhanden
         # if len(liste_teilgebiete) != 0:
@@ -1274,39 +1619,49 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         # Regenschreiber berücksichtigen nicht ausgewählte Teilgebiete
         sql = """SELECT regenschreiber FROM flaechen GROUP BY regenschreiber"""
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_regenschreiber'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_regenschreiber"):
             del dbHE
             return False
 
         attr = dbQK.fetchall()
         if attr == [(None,)]:
-            reglis = tuple(['Regenschreiber1'])
-            logger.debug('In QKan war kein Regenschreiber vorhanden. "Regenschreiber1" ergänzt')
+            reglis = tuple(["Regenschreiber1"])
+            logger.debug(
+                'In QKan war kein Regenschreiber vorhanden. "Regenschreiber1" ergänzt'
+            )
         else:
             reglis = tuple([str(el[0]) for el in attr])
-            logger.debug('In QKan wurden folgende Regenschreiber referenziert: {}'.format(str(reglis)))
+            logger.debug(
+                "In QKan wurden folgende Regenschreiber referenziert: {}".format(
+                    str(reglis)
+                )
+            )
 
-        logger.debug('Regenschreiber - reglis: {}'.format(str(reglis)))
+        logger.debug("Regenschreiber - reglis: {}".format(str(reglis)))
 
         # Liste der fehlenden Regenschreiber in der Ziel- (*.idbf-) Datenbank
         # Hier muss eine Besonderheit von tuple berücksichtigt werden. Ein Tuple mit einem Element
         # endet mit ",)", z.B. (1,), während ohne oder bei mehr als einem Element alles wie üblich
         # ist: () oder (1,2,3,4)
         if len(reglis) == 1:
-            sql = """SELECT NAME FROM REGENSCHREIBER WHERE NAME NOT IN {})""".format(str(reglis)[:-2])
+            sql = """SELECT NAME FROM REGENSCHREIBER WHERE NAME NOT IN {})""".format(
+                str(reglis)[:-2]
+            )
         else:
-            sql = """SELECT NAME FROM REGENSCHREIBER WHERE NAME NOT IN {}""".format(str(reglis))
+            sql = """SELECT NAME FROM REGENSCHREIBER WHERE NAME NOT IN {}""".format(
+                str(reglis)
+            )
 
-        if not dbHE.sql(sql, 'dbHE: export_regenschreiber (1)'):
+        if not dbHE.sql(sql, "dbHE: export_regenschreiber (1)"):
             del dbQK
             return False
 
         attr = dbHE.fetchall()
-        logger.debug('Regenschreiber - attr: {}'.format(str(attr)))
+        logger.debug("Regenschreiber - attr: {}".format(str(attr)))
 
         nr0 = nextid
 
-        createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+        createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
 
         regschnr = 1
         for regenschreiber in reglis:
@@ -1325,29 +1680,40 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                       '{lastmodified}', '{kommentar}', {id}
                     FROM RDB$DATABASE
                     WHERE '{name}' NOT IN (SELECT NAME FROM REGENSCHREIBER);
-                  """.format(nummer=regschnr, station=10000 + regschnr,
-                             xkoordinate=0, ykoordinate=0, zkoordinate=0, name=regenschreiber,
-                             flaechegesamt=0, flaechedurchlaessig=0, flaecheundurchlaessig=0,
-                             anzahlhaltungen=0, internenummer=0,
-                             lastmodified=createdat, kommentar='Ergänzt durch QKan', id=nextid)
+                  """.format(
+                    nummer=regschnr,
+                    station=10000 + regschnr,
+                    xkoordinate=0,
+                    ykoordinate=0,
+                    zkoordinate=0,
+                    name=regenschreiber,
+                    flaechegesamt=0,
+                    flaechedurchlaessig=0,
+                    flaecheundurchlaessig=0,
+                    anzahlhaltungen=0,
+                    internenummer=0,
+                    lastmodified=createdat,
+                    kommentar="Ergänzt durch QKan",
+                    id=nextid,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_regenschreiber (2)'):
+                if not dbHE.sql(sql, "dbHE: export_regenschreiber (2)"):
                     del dbQK
                     return False
 
-                logger.debug('In HE folgenden Regenschreiber ergänzt: {}'.format(sql))
+                logger.debug("In HE folgenden Regenschreiber ergänzt: {}".format(sql))
 
                 nextid += 1
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Regenschreiber eingefuegt'.format(nextid - nr0), 0.68)
+        fortschritt("{} Regenschreiber eingefuegt".format(nextid - nr0), 0.68)
     progress_bar.setValue(90)
 
     # ------------------------------------------------------------------------------------------------
     # Export der Flächen
 
-    if check_export['export_flaechenrw'] or check_export['modify_flaechenrw']:
+    if check_export["export_flaechenrw"] or check_export["modify_flaechenrw"]:
         """
         Export der Flaechendaten
 
@@ -1373,22 +1739,28 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         Befestigte Flächen"""
 
         # Vorbereitung flaechen: Falls flnam leer ist, plausibel ergänzen:
-        if not checknames(dbQK, 'flaechen', 'flnam', 'f_', autokorrektur):
+        if not checknames(dbQK, "flaechen", "flnam", "f_", autokorrektur):
             del dbQK
             del dbHE
             return False
 
         if not updatelinkfl(dbQK, fangradius):
-            del dbHE            # Im Fehlerfall wird dbQK in updatelinkfl geschlossen.
-            fehlermeldung('Fehler beim Update der Flächen-Verknüpfungen',
-                          'Der logische Cache konnte nicht aktualisiert werden.')
+            del dbHE  # Im Fehlerfall wird dbQK in updatelinkfl geschlossen.
+            fehlermeldung(
+                "Fehler beim Update der Flächen-Verknüpfungen",
+                "Der logische Cache konnte nicht aktualisiert werden.",
+            )
 
         # Zu verschneidende zusammen mit nicht zu verschneidene Flächen exportieren
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
         if len(liste_teilgebiete) != 0:
-            auswahl_c = " AND ha.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
-            auswahl_a = " WHERE ha.teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl_c = " AND ha.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
+            auswahl_a = " WHERE ha.teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl_c = ""
             auswahl_a = ""
@@ -1399,26 +1771,25 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
             join_verschneidung = """
                 LEFT JOIN tezg AS tg
                 ON lf.tezgnam = tg.flnam"""
-            expr_verschneidung = \
-                """CastToMultiPolygon(CollectionExtract(intersection(fl.geom,tg.geom),3))"""
+            expr_verschneidung = """CastToMultiPolygon(CollectionExtract(intersection(fl.geom,tg.geom),3))"""
         else:
             case_verschneidung = "1"
             join_verschneidung = ""
-            expr_verschneidung = "fl.geom"                  # dummy
+            expr_verschneidung = "fl.geom"  # dummy
 
         # Einfuegen der Flächendaten in die QKan-Datenbank, Tabelle "flaechen_he8"
 
         if exportFlaechenHE8:
 
-            # Vorbereitung: Leeren der Tabelle "flaechen_he8" 
+            # Vorbereitung: Leeren der Tabelle "flaechen_he8"
 
             sql = "DELETE FROM flaechen_he8"
-            if not dbQK.sql(sql, 'dbQK: k_qkhe.exportFlaechenHE8.delete'):
+            if not dbQK.sql(sql, "dbQK: k_qkhe.exportFlaechenHE8.delete"):
                 del dbHE
                 return False
 
-            # Einfügen aller verschnittenen Flächen in Tabelle "flaechen_he8", zusammengefasst
-            # nach Haltungen, Regenschreiber, etc. 
+                # Einfügen aller verschnittenen Flächen in Tabelle "flaechen_he8", zusammengefasst
+                # nach Haltungen, Regenschreiber, etc.
 
                 sql = """
                 WITH flintersect AS (
@@ -1473,21 +1844,25 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                   kommentar AS Kommentar, 
                   SetSrid(geom, -1) AS Geometry
                 FROM flintersect AS fi
-                WHERE flaeche*10000 > {mindestflaeche}""".format(mindestflaeche=mindestflaeche, auswahl_a=auswahl_a, 
-                                                        case_verschneidung=case_verschneidung, 
-                                                        join_verschneidung=join_verschneidung)
+                WHERE flaeche*10000 > {mindestflaeche}""".format(
+                    mindestflaeche=mindestflaeche,
+                    auswahl_a=auswahl_a,
+                    case_verschneidung=case_verschneidung,
+                    join_verschneidung=join_verschneidung,
+                )
 
-            logger.debug('Abfrage zum Export der Flächendaten nach HE8: \n{}'.format(sql))
+            logger.debug(
+                "Abfrage zum Export der Flächendaten nach HE8: \n{}".format(sql)
+            )
 
-            if not dbQK.sql(sql, 'dbQK: k_qkhe.export_flaechenhe8'):
+            if not dbQK.sql(sql, "dbQK: k_qkhe.export_flaechenhe8"):
                 del dbHE
                 return False
 
+        # Abfragen zum Export in die HE-7-Firebird-Datenbank. Da der Datentransfer innerhalb einer
+        # Abfrage nicht möglich ist, werden die Inhalte datensatzweise übertragen.
 
-        # Abfragen zum Export in die HE-7-Firebird-Datenbank. Da der Datentransfer innerhalb einer 
-        # Abfrage nicht möglich ist, werden die Inhalte datensatzweise übertragen. 
-
-        if check_export['combine_flaechenrw']:
+        if check_export["combine_flaechenrw"]:
             sql = """
               WITH flintersect AS (
                 SELECT lf.flnam AS flnam, lf.pk AS pl, lf.haltnam AS haltnam, fl.neigkl AS neigkl, lf.abflusstyp AS abflusstyp, 
@@ -1513,11 +1888,14 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
               ON fi.haltnam = ha.haltnam
               WHERE area(fi.geom) > {mindestflaeche}{auswahl_c}
               GROUP BY ha.haltnam, fi.abflussparameter, fi.regenschreiber, fi.speicherzahl, 
-                fi.abflusstyp, fi.neigkl""".format(mindestflaeche=mindestflaeche, auswahl_c=auswahl_c, 
-                                                    case_verschneidung=case_verschneidung, 
-                                                    join_verschneidung=join_verschneidung)
-            logger.debug('combine_flaechenrw = True')
-            logger.debug('Abfrage zum Export der Flächendaten: \n{}'.format(sql))
+                fi.abflusstyp, fi.neigkl""".format(
+                mindestflaeche=mindestflaeche,
+                auswahl_c=auswahl_c,
+                case_verschneidung=case_verschneidung,
+                join_verschneidung=join_verschneidung,
+            )
+            logger.debug("combine_flaechenrw = True")
+            logger.debug("Abfrage zum Export der Flächendaten: \n{}".format(sql))
         else:
             sql = """
               WITH flintersect AS (
@@ -1539,100 +1917,114 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
               fliesszeitflaeche, fliesszeitkanal, flaeche, regenschreiber, abflussparameter,
               createdat, kommentar
               FROM flintersect AS fi
-              WHERE flaeche*10000 > {mindestflaeche}""".format(mindestflaeche=mindestflaeche, auswahl_a=auswahl_a, 
-                                                    case_verschneidung=case_verschneidung, 
-                                                    join_verschneidung=join_verschneidung)
-            logger.debug('combine_flaechenrw = False')
-            logger.debug('Abfrage zum Export der Flächendaten: \n{}'.format(sql))
+              WHERE flaeche*10000 > {mindestflaeche}""".format(
+                mindestflaeche=mindestflaeche,
+                auswahl_a=auswahl_a,
+                case_verschneidung=case_verschneidung,
+                join_verschneidung=join_verschneidung,
+            )
+            logger.debug("combine_flaechenrw = False")
+            logger.debug("Abfrage zum Export der Flächendaten: \n{}".format(sql))
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_flaechenrw (4)'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_flaechenrw (4)"):
             del dbHE
             return False
 
-        fortschritt('Export befestigte Flaechen...', 0.70)
+        fortschritt("Export befestigte Flaechen...", 0.70)
 
         nr0 = nextid
 
-        fehler_abflusstyp = False               # Um wiederholte Fehlermeldung zu unterdrücken...
+        fehler_abflusstyp = False  # Um wiederholte Fehlermeldung zu unterdrücken...
 
         for attr in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            (flnam, haltnam, neigkl,
-             abflusstyp, speicherzahl, speicherkonst,
-             fliesszeitflaeche, fliesszeitkanal,
-             flaeche, regenschreiber,
-             abflussparameter, createdat_t,
-             kommentar) = \
-                ('NULL' if el is None else el for el in attr)
+            (
+                flnam,
+                haltnam,
+                neigkl,
+                abflusstyp,
+                speicherzahl,
+                speicherkonst,
+                fliesszeitflaeche,
+                fliesszeitkanal,
+                flaeche,
+                regenschreiber,
+                abflussparameter,
+                createdat_t,
+                kommentar,
+            ) = ("NULL" if el is None else el for el in attr)
 
             # Datenkorrekturen
-            if regenschreiber == 'NULL':
-                regenschreiber = 'Regenschreiber1'
+            if regenschreiber == "NULL":
+                regenschreiber = "Regenschreiber1"
 
             if abflusstyp in he_fltyp_ref:
                 he_typ = he_fltyp_ref[abflusstyp]
-            elif abflusstyp == 'NULL':
+            elif abflusstyp == "NULL":
                 he_typ = 0  # Flächentyp 'Direkt'
             else:
                 if not fehler_abflusstyp:
-                    meldung('Datenfehler in Tabelle "flaechen", Feld "abflusstyp"', 'Wert: {}'.format(abflusstyp))
+                    meldung(
+                        'Datenfehler in Tabelle "flaechen", Feld "abflusstyp"',
+                        "Wert: {}".format(abflusstyp),
+                    )
                     he_typ = 0  # Flächentyp 'Direkt'
                     fehler_abflusstyp = True
 
-            if flaeche != 'NULL':
-                flaeche = '{0:.4f}'.format(flaeche)
+            if flaeche != "NULL":
+                flaeche = "{0:.4f}".format(flaeche)
 
-            if neigkl != 'NULL':
-                neigkl = '{0:.0f}'.format(neigkl)
+            if neigkl != "NULL":
+                neigkl = "{0:.0f}".format(neigkl)
             else:
                 neigkl = 0
 
-            if speicherzahl != 'NULL':
-                speicherzahl = '{0:.0f}'.format(speicherzahl)
+            if speicherzahl != "NULL":
+                speicherzahl = "{0:.0f}".format(speicherzahl)
             else:
-                speicherzahl = '0'
+                speicherzahl = "0"
 
-            if speicherkonst != 'NULL':
-                speicherkonst = '{0:.3f}'.format(speicherkonst)
+            if speicherkonst != "NULL":
+                speicherkonst = "{0:.3f}".format(speicherkonst)
             else:
-                speicherkonst = '0'
+                speicherkonst = "0"
 
-            if fliesszeitflaeche != 'NULL':
-                fliesszeitflaeche = '{0:.2f}'.format(fliesszeitflaeche)
+            if fliesszeitflaeche != "NULL":
+                fliesszeitflaeche = "{0:.2f}".format(fliesszeitflaeche)
             else:
-                fliesszeitflaeche = '0'
+                fliesszeitflaeche = "0"
 
-            if fliesszeitkanal != 'NULL':
-                fliesszeitkanal = '{0:.2f}'.format(fliesszeitkanal)
+            if fliesszeitkanal != "NULL":
+                fliesszeitkanal = "{0:.2f}".format(fliesszeitkanal)
             else:
-                fliesszeitkanal = '0'
+                fliesszeitkanal = "0"
 
-            # Feld "fliesszeitflaeche" in QKan entspricht je nach he_typ zwei 
-            # unterschiedlichen Feldern in HE, s.o. Deshalb wird dieser Wert 
+            # Feld "fliesszeitflaeche" in QKan entspricht je nach he_typ zwei
+            # unterschiedlichen Feldern in HE, s.o. Deshalb wird dieser Wert
             # einfach in beide Felder geschrieben (bis Version 3.0.1: getrennt)
 
             fliesszeitoberfl = fliesszeitflaeche
             fliesszeitschwerp = fliesszeitflaeche
 
             # Standardwerte, falls keine Vorgaben
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
-            if kommentar == 'NULL' or kommentar == '':
-                kommentar = 'eingefuegt von k_qkhe'
+            if kommentar == "NULL" or kommentar == "":
+                kommentar = "eingefuegt von k_qkhe"
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_flaechenrw']:
+            if check_export["modify_flaechenrw"]:
                 sql = """
                   UPDATE FLAECHE SET
                   GROESSE={flaeche}, REGENSCHREIBER='{regenschreiber}', HALTUNG='{haltnam}',
@@ -1643,20 +2035,31 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                   LASTMODIFIED='{createdat}',
                   KOMMENTAR='{kommentar}', ZUORDNUNABHEZG={zuordnunabhezg}
                   WHERE NAME = '{flnam}';
-                  """.format(flaeche=flaeche, regenschreiber=regenschreiber, haltnam=haltnam,
-                             he_typ=he_typ, fltyp=0, speicherzahl=speicherzahl,
-                             speicherkonst=speicherkonst, fliesszeitschwerp=fliesszeitschwerp,
-                             fliesszeitoberfl=fliesszeitoberfl, fliesszeitkanal=fliesszeitkanal,
-                             abflussparameter=abflussparameter, neigkl=neigkl,
-                             flnam=flnam, createdat=createdat,
-                             kommentar=kommentar, zuordnunabhezg=0)
+                  """.format(
+                    flaeche=flaeche,
+                    regenschreiber=regenschreiber,
+                    haltnam=haltnam,
+                    he_typ=he_typ,
+                    fltyp=0,
+                    speicherzahl=speicherzahl,
+                    speicherkonst=speicherkonst,
+                    fliesszeitschwerp=fliesszeitschwerp,
+                    fliesszeitoberfl=fliesszeitoberfl,
+                    fliesszeitkanal=fliesszeitkanal,
+                    abflussparameter=abflussparameter,
+                    neigkl=neigkl,
+                    flnam=flnam,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                    zuordnunabhezg=0,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_flaechenrw (1)'):
+                if not dbHE.sql(sql, "dbHE: export_flaechenrw (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_flaechenrw']:
+            if check_export["export_flaechenrw"]:
                 sql = """
                   INSERT INTO FLAECHE
                   ( GROESSE, REGENSCHREIBER, HALTUNG,
@@ -1676,16 +2079,28 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     '{kommentar}', {nextid}, {zuordnunabhezg}
                   FROM RDB$DATABASE
                   WHERE '{flnam}' NOT IN (SELECT NAME FROM FLAECHE);
-                  """.format(flaeche=flaeche, regenschreiber=regenschreiber, haltnam=haltnam,
-                             he_typ=he_typ, fltyp=0, speicherzahl=speicherzahl,
-                             speicherkonst=speicherkonst, fliesszeitschwerp=fliesszeitschwerp,
-                             fliesszeitoberfl=fliesszeitoberfl, fliesszeitkanal=fliesszeitkanal,
-                             abflussparameter=abflussparameter, neigkl=neigkl,
-                             flnam=flnam, createdat=createdat,
-                             kommentar=kommentar, nextid=nextid, zuordnunabhezg=0)
+                  """.format(
+                    flaeche=flaeche,
+                    regenschreiber=regenschreiber,
+                    haltnam=haltnam,
+                    he_typ=he_typ,
+                    fltyp=0,
+                    speicherzahl=speicherzahl,
+                    speicherkonst=speicherkonst,
+                    fliesszeitschwerp=fliesszeitschwerp,
+                    fliesszeitoberfl=fliesszeitoberfl,
+                    fliesszeitkanal=fliesszeitkanal,
+                    abflussparameter=abflussparameter,
+                    neigkl=neigkl,
+                    flnam=flnam,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                    nextid=nextid,
+                    zuordnunabhezg=0,
+                )
 
                 # logger.debug('Abfrage zum Export der Flächendaten in die ITWH-DB: \n{}'.format(sql))
-                if not dbHE.sql(sql, 'dbHE: export_flaechenrw (2)'):
+                if not dbHE.sql(sql, "dbHE: export_flaechenrw (2)"):
                     del dbQK
                     return False
 
@@ -1694,13 +2109,13 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Flaechen eingefuegt'.format(nextid - nr0), 0.80)
+        fortschritt("{} Flaechen eingefuegt".format(nextid - nr0), 0.80)
     progress_bar.setValue(90)
 
     # ------------------------------------------------------------------------------------------------
     # Export der Direkteinleitungen
 
-    if check_export['export_einleitdirekt'] or check_export['modify_einleitdirekt']:
+    if check_export["export_einleitdirekt"] or check_export["modify_einleitdirekt"]:
         # Herkunft = 1 (Direkt) und 3 (Einwohnerbezogen)
 
         """
@@ -1736,16 +2151,16 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                diese Einwohnerpunkte aufgelistet.
         """
 
-        sql = 'SELECT count(*) AS anz FROM einzugsgebiete'
+        sql = "SELECT count(*) AS anz FROM einzugsgebiete"
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (1)'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (1)"):
             del dbHE
             return False
 
         anztgb = int(dbQK.fetchone()[0])
         if anztgb == 0:
             # 1 Kein Einzugsgebiet in QKan -----------------------------------------------------------------
-            createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
 
             sql = """
                 SELECT count(*) AS anz FROM einleit WHERE
@@ -1754,7 +2169,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 (einzugsgebiet <> '')
             """
 
-            if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (2)'):
+            if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (2)"):
                 del dbHE
                 return False
 
@@ -1767,9 +2182,11 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                      fremdwas, createdat, kommentar)
                    Values
                    ( 'einzugsgebiet1', 60, 120, 14, 100, '{createdat}',
-                     'Automatisch durch  QKan hinzugefuegt')""".format(createdat=createdat)
+                     'Automatisch durch  QKan hinzugefuegt')""".format(
+                    createdat=createdat
+                )
 
-                if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (3)'):
+                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (3)"):
                     del dbHE
                     return False
 
@@ -1779,7 +2196,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 # Liste der in allen Einwohnerpunkten vorkommenden Einzugsgebiete
                 sql = """SELECT einzugsgebiet FROM einleit WHERE einzugsgebiet is not NULL GROUP BY einzugsgebiet"""
 
-                if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (4)'):
+                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (4)"):
                     del dbHE
                     return False
 
@@ -1791,15 +2208,19 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                          fremdwas, createdat, kommentar)
                        Values
                        ( '{tgnam}', 60, 120, 14, 100, '{createdat}',
-                         'Hinzugefuegt aus QKan')""".format(tgnam=tgb[0], createdat=createdat)
+                         'Hinzugefuegt aus QKan')""".format(
+                        tgnam=tgb[0], createdat=createdat
+                    )
 
-                    if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (5)'):
+                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (5)"):
                         del dbHE
                         return False
 
                     dbQK.commit()
-                    meldung("Tabelle 'einzugsgebiete':\n",
-                           "Es wurden {} Einzugsgebiete hinzugefügt".format(len(tgb)))
+                    meldung(
+                        "Tabelle 'einzugsgebiete':\n",
+                        "Es wurden {} Einzugsgebiete hinzugefügt".format(len(tgb)),
+                    )
 
                 # Kontrolle mit Warnung
                 sql = """
@@ -1809,14 +2230,18 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     WHERE einzugsgebiete.pk IS NULL
                 """
 
-                if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (6)'):
+                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (6)"):
                     del dbHE
                     return False
 
                 anz = int(dbQK.fetchone()[0])
                 if anz > 0:
-                    meldung("Fehlerhafte Daten in Tabelle 'einleit':",
-                            "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(anz))
+                    meldung(
+                        "Fehlerhafte Daten in Tabelle 'einleit':",
+                        "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(
+                            anz
+                        ),
+                    )
         else:
             # 2 Einzugsgebiete in QKan ----------------------------------------------------
             sql = """
@@ -1825,7 +2250,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 INNER JOIN einzugsgebiete ON einleit.einzugsgebiet = einzugsgebiete.tgnam
             """
 
-            if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (7)'):
+            if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (7)"):
                 del dbHE
                 return False
 
@@ -1836,26 +2261,30 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     # 2.1.1 Es existiert genau ein Einzugsgebiet ---------------------------------------------
                     sql = """UPDATE einleit SET einzugsgebiet = (SELECT tgnam FROM einzugsgebiete GROUP BY tgnam)"""
 
-                    if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (8)'):
+                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (8)"):
                         del dbHE
                         return False
 
                     dbQK.commit()
-                    meldung("Tabelle 'einleit':\n",
-                            "Alle Einleitpunkte in der Tabelle 'einleit' wurden einem Einzugsgebiet zugeordnet")
+                    meldung(
+                        "Tabelle 'einleit':\n",
+                        "Alle Einleitpunkte in der Tabelle 'einleit' wurden einem Einzugsgebiet zugeordnet",
+                    )
                 else:
                     # 2.1.2 Es existieren mehrere Einzugsgebiete ------------------------------------------
                     sql = """UPDATE einleit SET einzugsgebiet = (SELECT tgnam FROM einzugsgebiete
                           WHERE within(einleit.geom, einzugsgebiete.geom) 
                               and einleit.geom IS NOT NULL and einzugsgebiete.geom IS NOT NULL)"""
 
-                    if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (9)'):
+                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (9)"):
                         del dbHE
                         return False
 
                     dbQK.commit()
-                    meldung("Tabelle 'einleit':\n",
-                            "Alle Einleitpunkte in der Tabelle 'einleit' wurden dem Einzugsgebiet zugeordnet, in dem sie liegen.")
+                    meldung(
+                        "Tabelle 'einleit':\n",
+                        "Alle Einleitpunkte in der Tabelle 'einleit' wurden dem Einzugsgebiet zugeordnet, in dem sie liegen.",
+                    )
 
                     # Kontrolle mit Warnung
                     sql = """
@@ -1864,14 +2293,18 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                         LEFT JOIN einzugsgebiete ON einleit.einzugsgebiet = einzugsgebiete.tgnam
                         WHERE einzugsgebiete.pk IS NULL
                     """
-                    if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (10)'):
+                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (10)"):
                         del dbHE
                         return False
 
                     anz = int(dbQK.fetchone()[0])
                     if anz > 0:
-                        meldung("Fehlerhafte Daten in Tabelle 'einleit':",
-                                "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(anz))
+                        meldung(
+                            "Fehlerhafte Daten in Tabelle 'einleit':",
+                            "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(
+                                anz
+                            ),
+                        )
             else:
                 # 2.2 Es gibt Einleitpunkte mit zugeordnetem Einzugsgebiet
                 # Kontrolle mit Warnung
@@ -1882,14 +2315,18 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     WHERE einzugsgebiete.pk is NULL
                 """
 
-                if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einzugsgebiete (11)'):
+                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (11)"):
                     del dbHE
                     return False
 
                 anz = int(dbQK.fetchone()[0])
                 if anz > 0:
-                    meldung("Fehlerhafte Daten in Tabelle 'einleit':",
-                            "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(anz))
+                    meldung(
+                        "Fehlerhafte Daten in Tabelle 'einleit':",
+                        "{} Einleitpunkte sind keinem Einzugsgebiet zugeordnet".format(
+                            anz
+                        ),
+                    )
 
         # --------------------------------------------------------------------------------------------
         # Export der Einzeleinleiter aus Schmutzwasser
@@ -1909,26 +2346,28 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         #    3 = Einwohner
         #
 
-        # HERKUNFT = 1 (Direkt) wird aus einer eigenen Tabelle "einleiter" erzeugt und ebenfalls in die 
+        # HERKUNFT = 1 (Direkt) wird aus einer eigenen Tabelle "einleiter" erzeugt und ebenfalls in die
         # HE-Tabelle "Einzeleinleiter" übertragen
         #
         # HERKUNFT = 2 (Frischwasserverbrauch) ist zurzeit nicht realisiert
         #
-        # Herkunft = 3 (Einwohner). 
-        # Nur die Flächen werden berücksichtigt, die einem Einzugsgebiet 
+        # Herkunft = 3 (Einwohner).
+        # Nur die Flächen werden berücksichtigt, die einem Einzugsgebiet
         # mit Wasserverbrauch zugeordnet sind.
 
         # Vorbereitung einleit: Falls elnam leer ist, plausibel ergänzen:
 
-        if not checknames(dbQK, 'einleit', 'elnam', 'e_', autokorrektur):
+        if not checknames(dbQK, "einleit", "elnam", "e_", autokorrektur):
             del dbQK
             del dbHE
             return False
 
         if not updatelinksw(dbQK, fangradius):
             del dbHE  # Im Fehlerfall wird dbQK in updatelinksw geschlossen.
-            fehlermeldung('Fehler beim Update der Einzeleinleiter-Verknüpfungen',
-                          'Der logische Cache konnte nicht aktualisiert werden.')
+            fehlermeldung(
+                "Fehler beim Update der Einzeleinleiter-Verknüpfungen",
+                "Der logische Cache konnte nicht aktualisiert werden.",
+            )
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
 
@@ -1937,7 +2376,7 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         else:
             auswahl = ""
 
-        if check_export['combine_einleitdirekt']:
+        if check_export["combine_einleitdirekt"]:
             sql = """SELECT
               elnam,
               avg(x(geom)) AS xel,
@@ -1975,7 +2414,9 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                 printf('%.1f',tg.stdmittel),
                 printf('%.3f',tg.fremdwas),
                 printf('%.6f',el.ew)
-            """.format(auswahl=auswahl)
+            """.format(
+                auswahl=auswahl
+            )
         else:
             sql = """SELECT
               elnam,
@@ -2008,50 +2449,53 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
               INNER JOIN einzugsgebiete AS tg
               ON el.einzugsgebiet = tg.tgnam 
               WHERE zufluss IS NULL {auswahl}
-            """.format(auswahl=auswahl)
+            """.format(
+                auswahl=auswahl
+            )
 
-        logger.debug('\nSQL-4e:\n{}\n'.format(sql))
+        logger.debug("\nSQL-4e:\n{}\n".format(sql))
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_einleitdirekt (6)'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_einleitdirekt (6)"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Einzeleinleiter (direkt)...', 0.92)
+        fortschritt("Export Einzeleinleiter (direkt)...", 0.92)
 
         # Varianten abhängig von HE-Version
-        if versionolder(heDBVersion[0:2], ['7', '9'], 2):
-            logger.debug('Version vor 7.9 erkannt')
-            fieldsnew = ''
-            attrsnew = ''
-            valuesnew = ''
+        if versionolder(heDBVersion[0:2], ["7", "9"], 2):
+            logger.debug("Version vor 7.9 erkannt")
+            fieldsnew = ""
+            attrsnew = ""
+            valuesnew = ""
         else:
-            logger.debug('Version 7.9 erkannt')
-            fieldsnew = ', ZUFLUSSOBERERSCHACHT = 0'
-            attrsnew =  ', ZUFLUSSOBERERSCHACHT'
-            valuesnew = ', 0'
+            logger.debug("Version 7.9 erkannt")
+            fieldsnew = ", ZUFLUSSOBERERSCHACHT = 0"
+            attrsnew = ", ZUFLUSSOBERERSCHACHT"
+            valuesnew = ", 0"
 
         for b in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            elnam, xel, yel, haltnam, wverbrauch, stdmittel, fremdwas, einwohner, zuflussdirekt, herkunft, createdat_t = \
-                ('NULL' if el is None else el for el in b)
+            elnam, xel, yel, haltnam, wverbrauch, stdmittel, fremdwas, einwohner, zuflussdirekt, herkunft, createdat_t = (
+                "NULL" if el is None else el for el in b
+            )
 
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_einleitdirekt']:
+            if check_export["modify_einleitdirekt"]:
                 sql = """
                     UPDATE EINZELEINLEITER SET
                     XKOORDINATE={xel}, YKOORDINATE={yel}, ZUORDNUNGGESPERRT={zuordnunggesperrt}, 
@@ -2065,20 +2509,37 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     ABRECHNUNGSZEITRAUM={abrechnungszeitraum}, ABZUG={abzug},
                     LASTMODIFIED='{createdat}'{fieldsnew}
                     WHERE NAME='{elnam}';
-                    """.format(xel=xel, yel=yel, zuordnunggesperrt=0, zuordnunabhezg=1, haltnam=haltnam,
-                               abwasserart=0, einwohner=einwohner, wverbrauch=wverbrauch, herkunft=herkunft,
-                               stdmittel=stdmittel, fremdwas=fremdwas, faktor=1, flaeche=0,
-                               zuflussmodell=0, zuflussdirekt=zuflussdirekt, zufluss=0, planungsstatus=0,
-                               elnam=elnam[:27],
-                               abrechnungszeitraum=365, abzug=0,
-                               createdat=createdat, fieldsnew=fieldsnew)
+                    """.format(
+                    xel=xel,
+                    yel=yel,
+                    zuordnunggesperrt=0,
+                    zuordnunabhezg=1,
+                    haltnam=haltnam,
+                    abwasserart=0,
+                    einwohner=einwohner,
+                    wverbrauch=wverbrauch,
+                    herkunft=herkunft,
+                    stdmittel=stdmittel,
+                    fremdwas=fremdwas,
+                    faktor=1,
+                    flaeche=0,
+                    zuflussmodell=0,
+                    zuflussdirekt=zuflussdirekt,
+                    zufluss=0,
+                    planungsstatus=0,
+                    elnam=elnam[:27],
+                    abrechnungszeitraum=365,
+                    abzug=0,
+                    createdat=createdat,
+                    fieldsnew=fieldsnew,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_einleitdirekt (1)'):
+                if not dbHE.sql(sql, "dbHE: export_einleitdirekt (1)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_einleitdirekt']:
+            if check_export["export_einleitdirekt"]:
                 sql = """
                   INSERT INTO EINZELEINLEITER
                   ( XKOORDINATE, YKOORDINATE, ZUORDNUNGGESPERRT, ZUORDNUNABHEZG, ROHR,
@@ -2096,14 +2557,34 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     '{createdat}', {nextid}{valuesnew}
                   FROM RDB$DATABASE
                   WHERE '{elnam}' NOT IN (SELECT NAME FROM EINZELEINLEITER);
-              """.format(xel=xel, yel=yel, zuordnunggesperrt=0, zuordnunabhezg=1, haltnam=haltnam,
-                         abwasserart=0, einwohner=einwohner, wverbrauch=wverbrauch, herkunft=herkunft,
-                         stdmittel=stdmittel, fremdwas=fremdwas, faktor=1, flaeche=0,
-                         zuflussmodell=0, zuflussdirekt=zuflussdirekt, zufluss=0, planungsstatus=0, elnam=elnam[:27],
-                         abrechnungszeitraum=365, abzug=0,
-                         createdat=createdat, nextid=nextid, attrsnew=attrsnew, valuesnew=valuesnew)
+              """.format(
+                    xel=xel,
+                    yel=yel,
+                    zuordnunggesperrt=0,
+                    zuordnunabhezg=1,
+                    haltnam=haltnam,
+                    abwasserart=0,
+                    einwohner=einwohner,
+                    wverbrauch=wverbrauch,
+                    herkunft=herkunft,
+                    stdmittel=stdmittel,
+                    fremdwas=fremdwas,
+                    faktor=1,
+                    flaeche=0,
+                    zuflussmodell=0,
+                    zuflussdirekt=zuflussdirekt,
+                    zufluss=0,
+                    planungsstatus=0,
+                    elnam=elnam[:27],
+                    abrechnungszeitraum=365,
+                    abzug=0,
+                    createdat=createdat,
+                    nextid=nextid,
+                    attrsnew=attrsnew,
+                    valuesnew=valuesnew,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_einleitdirekt (2)'):
+                if not dbHE.sql(sql, "dbHE: export_einleitdirekt (2)"):
                     del dbQK
                     return False
 
@@ -2112,25 +2593,29 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Einzeleinleiter (direkt) eingefuegt'.format(nextid - nr0), 0.95)
+        fortschritt("{} Einzeleinleiter (direkt) eingefuegt".format(nextid - nr0), 0.95)
 
     # ------------------------------------------------------------------------------------------------
     # Export der Aussengebiete
 
-    if check_export['export_aussengebiete'] or check_export['modify_aussengebiete']:
+    if check_export["export_aussengebiete"] or check_export["modify_aussengebiete"]:
 
-        # Aktualisierung der Anbindungen, insbesondere wird der richtige Schacht in die 
+        # Aktualisierung der Anbindungen, insbesondere wird der richtige Schacht in die
         # Tabelle "aussengebiete" eingetragen.
 
         if not updatelinkageb(dbQK, fangradius):
             del dbHE  # Im Fehlerfall wird dbQK in updatelinkageb geschlossen.
-            fehlermeldung('Fehler beim Update der Außengebiete-Verknüpfungen',
-                          'Der logische Cache konnte nicht aktualisiert werden.')
+            fehlermeldung(
+                "Fehler beim Update der Außengebiete-Verknüpfungen",
+                "Der logische Cache konnte nicht aktualisiert werden.",
+            )
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
 
         if len(liste_teilgebiete) != 0:
-            auswahl = " WHERE teilgebiet in ('{}')".format("', '".join(liste_teilgebiete))
+            auswahl = " WHERE teilgebiet in ('{}')".format(
+                "', '".join(liste_teilgebiete)
+            )
         else:
             auswahl = ""
 
@@ -2149,38 +2634,40 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
           kommentar, 
           createdat
           FROM aussengebiete{auswahl}
-        """.format(auswahl=auswahl)
+        """.format(
+            auswahl=auswahl
+        )
 
-        logger.debug('\nSQL-4e:\n{}\n'.format(sql))
+        logger.debug("\nSQL-4e:\n{}\n".format(sql))
 
-        if not dbQK.sql(sql, 'dbQK: k_qkhe.export_aussengebiete (6)'):
+        if not dbQK.sql(sql, "dbQK: k_qkhe.export_aussengebiete (6)"):
             del dbHE
             return False
 
         nr0 = nextid
 
-        fortschritt('Export Außengebiete...', 0.92)
+        fortschritt("Export Außengebiete...", 0.92)
         for b in dbQK.fetchall():
 
             # In allen Feldern None durch NULL ersetzen
-            gebnam, xel, yel, schnam, hoeheob, hoeheun, fliessweg, gesflaeche, basisabfluss, cn, \
-            regenschreiber, kommentar, createdat_t = \
-                ('NULL' if el is None else el for el in b)
+            gebnam, xel, yel, schnam, hoeheob, hoeheun, fliessweg, gesflaeche, basisabfluss, cn, regenschreiber, kommentar, createdat_t = (
+                "NULL" if el is None else el for el in b
+            )
 
-            if createdat_t == 'NULL':
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', time.localtime())
+            if createdat_t == "NULL":
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", time.localtime())
             else:
                 try:
-                    if createdat_t.count(':') == 1:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M')
+                    if createdat_t.count(":") == 1:
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M")
                     else:
-                        createdat_s = time.strptime(createdat_t, '%d.%m.%Y %H:%M:%S')
+                        createdat_s = time.strptime(createdat_t, "%d.%m.%Y %H:%M:%S")
                 except:
                     createdat_s = time.localtime()
-                createdat = time.strftime('%d.%m.%Y %H:%M:%S', createdat_s)
+                createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
-            if check_export['modify_aussengebiete']:
+            if check_export["modify_aussengebiete"]:
                 sql = """
                     UPDATE AUSSENGEBIET SET
                     NAME='{gebnam}', SCHACHT='{schnam}', HOEHEOBEN={hoeheob}, 
@@ -2190,13 +2677,23 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     LASTMODIFIED='{createdat}', KOMMENTAR='{kommentar}'
                     WHERE NAME='{gebnam}';
                     """.format(
-                    gebnam=gebnam, schnam=schnam, hoeheob=hoeheob,
-                    hoeheun=hoeheun, xel=xel, yel=yel,
-                    gesflaeche=gesflaeche, cn=cn, basisabfluss=basisabfluss,
-                    fliessweg=fliessweg, verfahren=0, regenschreiber=regenschreiber,
-                    createdat=createdat, kommentar=kommentar)
+                    gebnam=gebnam,
+                    schnam=schnam,
+                    hoeheob=hoeheob,
+                    hoeheun=hoeheun,
+                    xel=xel,
+                    yel=yel,
+                    gesflaeche=gesflaeche,
+                    cn=cn,
+                    basisabfluss=basisabfluss,
+                    fliessweg=fliessweg,
+                    verfahren=0,
+                    regenschreiber=regenschreiber,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_aussengebiete (1)'):
+                if not dbHE.sql(sql, "dbHE: export_aussengebiete (1)"):
                     del dbQK
                     return False
 
@@ -2204,14 +2701,16 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     UPDATE TABELLENINHALTE 
                     SET KEYWERT = {cn}, WERT = {gesflaeche}
                     WHERE ID = (SELECT ID FROM AUSSENGEBIET WHERE NAME = '{gebnam}')
-                    """.format(cn=cn, gesflaeche=gesflaeche, gebnam=gebnam)
+                    """.format(
+                    cn=cn, gesflaeche=gesflaeche, gebnam=gebnam
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_aussengebiete (2)'):
+                if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
                     del dbQK
                     return False
 
             # Einfuegen in die Datenbank
-            if check_export['export_aussengebiete']:
+            if check_export["export_aussengebiete"]:
                 sql = """
                     INSERT INTO AUSSENGEBIET
                     ( NAME, SCHACHT, HOEHEOBEN, 
@@ -2228,13 +2727,24 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     FROM RDB$DATABASE
                     WHERE '{gebnam}' NOT IN (SELECT NAME FROM AUSSENGEBIET);
                     """.format(
-                    gebnam=gebnam, schnam=schnam, hoeheob=hoeheob,
-                    hoeheun=hoeheun, xel=xel, yel=yel,
-                    gesflaeche=gesflaeche, cn=cn, basisabfluss=basisabfluss,
-                    fliessweg=fliessweg, verfahren=0, regenschreiber=regenschreiber,
-                    createdat=createdat, kommentar=kommentar, nextid=nextid)
+                    gebnam=gebnam,
+                    schnam=schnam,
+                    hoeheob=hoeheob,
+                    hoeheun=hoeheun,
+                    xel=xel,
+                    yel=yel,
+                    gesflaeche=gesflaeche,
+                    cn=cn,
+                    basisabfluss=basisabfluss,
+                    fliessweg=fliessweg,
+                    verfahren=0,
+                    regenschreiber=regenschreiber,
+                    createdat=createdat,
+                    kommentar=kommentar,
+                    nextid=nextid,
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_aussengebiete (2)'):
+                if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
                     del dbQK
                     return False
 
@@ -2244,9 +2754,11 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
                     SELECT
                       {cn}, {gesflaeche}, {reihenfolge}, {id}
                     FROM RDB$DATABASE;
-                    """.format(cn=cn, gesflaeche=gesflaeche, reihenfolge=1, id=nextid)
+                    """.format(
+                    cn=cn, gesflaeche=gesflaeche, reihenfolge=1, id=nextid
+                )
 
-                if not dbHE.sql(sql, 'dbHE: export_aussengebiete (2)'):
+                if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
                     del dbQK
                     return False
 
@@ -2255,15 +2767,14 @@ def exportKanaldaten(iface, database_HE, dbtemplate_HE, dbQK, liste_teilgebiete,
         dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
         dbHE.commit()
 
-        fortschritt('{} Aussengebiete eingefuegt'.format(nextid - nr0), 0.98)
-
+        fortschritt("{} Aussengebiete eingefuegt".format(nextid - nr0), 0.98)
 
     # Zum Schluss: Schließen der Datenbankverbindungen
 
     del dbQK
     del dbHE
 
-    fortschritt('Ende...', 1)
+    fortschritt("Ende...", 1)
     progress_bar.setValue(100)
     status_message.setText("Datenexport abgeschlossen.")
     # status_message.setLevel(Qgis.Success)

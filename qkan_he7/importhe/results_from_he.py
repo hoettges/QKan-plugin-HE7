@@ -21,9 +21,9 @@
 
 """
 
-__author__ = 'Joerg Hoettges'
-__date__ = 'September 2016'
-__copyright__ = '(C) 2016, Joerg Hoettges'
+__author__ = "Joerg Hoettges"
+__date__ = "September 2016"
+__copyright__ = "(C) 2016, Joerg Hoettges"
 
 
 import logging
@@ -31,19 +31,26 @@ import os
 
 from qgis.core import QgsDataSourceUri, QgsProject, QgsVectorLayer
 from qgis.utils import pluginDirectory
-
 from qkan import enums
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_utils import fehlermeldung
 
-logger = logging.getLogger(u'QKan.importhe.results_from_he')
+logger = logging.getLogger("QKan.importhe.results_from_he")
 
 
 # ------------------------------------------------------------------------------
 # Hauptprogramm
 
-def importResults(database_HE, database_QKan, qml_choice, qmlfileResults, epsg=25832, dbtyp=u'SpatiaLite'):
+
+def importResults(
+    database_HE,
+    database_QKan,
+    qml_choice,
+    qmlfileResults,
+    epsg=25832,
+    dbtyp="SpatiaLite",
+):
     """Importiert Simulationsergebnisse aus einer HE-Firebird-Datenbank und schreibt diese in Tabellen
        der QKan-SpatiaLite-Datenbank.
 
@@ -65,31 +72,40 @@ def importResults(database_HE, database_QKan, qml_choice, qmlfileResults, epsg=2
     dbHE = FBConnection(database_HE)  # Datenbankobjekt der HE-Datenbank zum Lesen
 
     if dbHE is None:
-        fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                      u'ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!'.format(database_HE))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(database_HE),
+        )
         return None
 
-    dbQK = DBConnection(dbname=database_QKan)  # Datenbankobjekt der QKan-Datenbank zum Schreiben
+    dbQK = DBConnection(
+        dbname=database_QKan
+    )  # Datenbankobjekt der QKan-Datenbank zum Schreiben
     if not dbQK.connected:
         return None
 
     if dbQK is None:
-        fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                      u'QKan-Datenbank {:s} wurde nicht gefunden!\nAbbruch!'.format(database_QKan))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "QKan-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(
+                database_QKan
+            ),
+        )
         return None
 
     # Vorbereiten der temporären Ergebnistabellen
     sqllist = [
-        u'''CREATE TABLE IF NOT EXISTS ResultsSch(
+        """CREATE TABLE IF NOT EXISTS ResultsSch(
             pk INTEGER PRIMARY KEY AUTOINCREMENT,
             schnam TEXT,
             uebstauhaeuf REAL,
             uebstauanz REAL, 
             maxuebstauvol REAL,
             kommentar TEXT,
-            createdat TEXT DEFAULT CURRENT_DATE)''',
-        u"""SELECT AddGeometryColumn('ResultsSch','geom',{},'POINT',2)""".format(epsg),
-        u'''DELETE FROM ResultsSch''']
+            createdat TEXT DEFAULT CURRENT_DATE)""",
+        """SELECT AddGeometryColumn('ResultsSch','geom',{},'POINT',2)""".format(epsg),
+        """DELETE FROM ResultsSch""",
+    ]
     # , u'''CREATE TABLE IF NOT EXISTS ResultsHal(
     # pk INTEGER PRIMARY KEY AUTOINCREMENT,
     # haltnam TEXT,
@@ -98,78 +114,91 @@ def importResults(database_HE, database_QKan, qml_choice, qmlfileResults, epsg=2
     # maxuebstauvol REAL,
     # kommentar TEXT,
     # createdat TEXT DEFAULT CURRENT_DATE)''',
-    # u"""SELECT AddGeometryColumn('ResultsHal','geom',{},'LINESTRING',2)""".format(epsg)
+    # """SELECT AddGeometryColumn('ResultsHal','geom',{},'LINESTRING',2)""".format(epsg)
     # u'''DELETE FROM ResultsHal''']
 
     for sql in sqllist:
-        if not dbQK.sql(sql, u"QKan_Import_Results (1)"):
+        if not dbQK.sql(sql, "QKan_Import_Results (1)"):
             return False
 
     # Die folgende Abfrage gilt sowohl bei Einzel- als auch bei Seriensimulationen:
-    sql = u'''SELECT MR.KNOTEN, LZ.HAEUFIGKEITUEBERSTAU, LZ.ANZAHLUEBERSTAU, MR.UEBERSTAUVOLUMEN
+    sql = """SELECT MR.KNOTEN, LZ.HAEUFIGKEITUEBERSTAU, LZ.ANZAHLUEBERSTAU, MR.UEBERSTAUVOLUMEN
             FROM LAU_MAX_S AS MR
             LEFT JOIN LANGZEITKNOTEN AS LZ
             ON MR.KNOTEN = LZ.KNOTEN
-            ORDER BY KNOTEN'''
+            ORDER BY KNOTEN"""
 
-    if not dbHE.sql(sql, u"QKan_Import_Results (4)"):
+    if not dbHE.sql(sql, "QKan_Import_Results (4)"):
         return False
 
     for attr in dbHE.fetchall():
         # In allen Feldern None durch NULL ersetzen
-        (schnam, uebstauhaeuf, uebstauanz, maxuebstauvol) = \
-            (u'NULL' if el is None else el for el in attr)
+        (schnam, uebstauhaeuf, uebstauanz, maxuebstauvol) = (
+            "NULL" if el is None else el for el in attr
+        )
 
-        sql = u'''INSERT INTO ResultsSch
+        sql = """INSERT INTO ResultsSch
                 (schnam, uebstauhaeuf, uebstauanz, maxuebstauvol, kommentar)
-                VALUES ('{schnam}', {uebstauhaeuf}, {uebstauanz}, {maxuebstauvol}, '{kommentar}')'''.format(
-            schnam=schnam, uebstauhaeuf=uebstauhaeuf, uebstauanz=uebstauanz,
-            maxuebstauvol=maxuebstauvol, kommentar=os.path.basename(database_HE))
+                VALUES ('{schnam}', {uebstauhaeuf}, {uebstauanz}, {maxuebstauvol}, '{kommentar}')""".format(
+            schnam=schnam,
+            uebstauhaeuf=uebstauhaeuf,
+            uebstauanz=uebstauanz,
+            maxuebstauvol=maxuebstauvol,
+            kommentar=os.path.basename(database_HE),
+        )
 
-        if not dbQK.sql(sql, u'QKan_Import_Results (5)'):
+        if not dbQK.sql(sql, "QKan_Import_Results (5)"):
             return False
 
-    sql = '''UPDATE ResultsSch
+    sql = """UPDATE ResultsSch
             SET geom = 
             (   SELECT geop
                 FROM schaechte
-                WHERE schaechte.schnam = ResultsSch.schnam)'''
-    if not dbQK.sql(sql, u'QKan_Import_Results (6)'):
+                WHERE schaechte.schnam = ResultsSch.schnam)"""
+    if not dbQK.sql(sql, "QKan_Import_Results (6)"):
         return False
 
     dbQK.commit()
 
     # Einfügen der Ergebnistabelle in die Layerliste, wenn nicht schon geladen
     layers = [layer for layer in QgsProject.instance().mapLayers().values()]
-    if u'Ergebnisse_LZ' not in [lay.name() for lay in layers]:
+    if "Ergebnisse_LZ" not in [lay.name() for lay in layers]:
         uri = QgsDataSourceUri()
         uri.setDatabase(database_QKan)
-        uri.setDataSource(u'', u'ResultsSch', u'geom')
-        vlayer = QgsVectorLayer(uri.uri(), u'Überstau Schächte', u'spatialite')
+        uri.setDataSource("", "ResultsSch", "geom")
+        vlayer = QgsVectorLayer(uri.uri(), "Überstau Schächte", "spatialite")
         QgsProject.instance().addMapLayer(vlayer)
 
         # Stilvorlage nach Benutzerwahl laden
-        templatepath = os.path.join(pluginDirectory('qkan'), u"templates")
+        templatepath = os.path.join(pluginDirectory("qkan"), "templates")
         if qml_choice == enums.QmlChoice.UEBH:
-            template = os.path.join(templatepath, u"Überstauhäufigkeit.qml")
+            template = os.path.join(templatepath, "Überstauhäufigkeit.qml")
             try:
                 vlayer.loadNamedStyle(template)
             except:
-                fehlermeldung(u"Fehler in QKan_Results_from_HE",
-                              u'Stildatei "Überstauhäufigkeit.qml" wurde nicht gefunden!\nAbbruch!')
+                fehlermeldung(
+                    "Fehler in QKan_Results_from_HE",
+                    u'Stildatei "Überstauhäufigkeit.qml" wurde nicht gefunden!\nAbbruch!',
+                )
         elif qml_choice == enums.QmlChoice.UEBVOL:
-            template = os.path.join(templatepath, u"Überstauvolumen.qml")
+            template = os.path.join(templatepath, "Überstauvolumen.qml")
             try:
                 vlayer.loadNamedStyle(template)
             except:
-                fehlermeldung(u"Fehler in QKan_Results_from_HE",
-                              u'Stildatei "Überstauvolumen.qml" wurde nicht gefunden!\nAbbruch!')
+                fehlermeldung(
+                    "Fehler in QKan_Results_from_HE",
+                    u'Stildatei "Überstauvolumen.qml" wurde nicht gefunden!\nAbbruch!',
+                )
         elif qml_choice == enums.QmlChoice.USERQML:
             try:
                 vlayer.loadNamedStyle(qmlfileResults)
             except:
-                fehlermeldung(u"Fehler in QKan_Results_from_HE",
-                              u'Benutzerdefinierte Stildatei {:s} wurde nicht gefunden!\nAbbruch!'.format(qml_choice))
+                fehlermeldung(
+                    "Fehler in QKan_Results_from_HE",
+                    "Benutzerdefinierte Stildatei {:s} wurde nicht gefunden!\nAbbruch!".format(
+                        qml_choice
+                    ),
+                )
 
     del dbQK
     del dbHE

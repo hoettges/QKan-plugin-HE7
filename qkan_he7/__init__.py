@@ -44,11 +44,7 @@ class QKan:
         from .exporthe import ExportToHE
         from .ganglinienhe import GanglinienHE
 
-        self.plugins = [
-            ImportFromHE(iface),
-            ExportToHE(iface),
-            GanglinienHE(iface),
-        ]
+        self.plugins = [ImportFromHE(iface), ExportToHE(iface), GanglinienHE(iface)]
         QKan.instance = self
 
         # Register self

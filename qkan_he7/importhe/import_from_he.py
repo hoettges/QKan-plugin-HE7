@@ -23,30 +23,31 @@
 
 """
 
-__author__ = 'Joerg Hoettges'
-__date__ = 'September 2016'
-__copyright__ = '(C) 2016, Joerg Hoettges'
+__author__ = "Joerg Hoettges"
+__date__ = "September 2016"
+__copyright__ = "(C) 2016, Joerg Hoettges"
 
 import logging
 import os
 import xml.etree.ElementTree as ET
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.PyQt.QtCore import QFileInfo
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem
 from qgis.utils import pluginDirectory
-
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
-from qkan.database.qkan_utils import fehlermeldung, evalNodeTypes
+from qkan.database.qkan_utils import evalNodeTypes, fehlermeldung
 
-logger = logging.getLogger(u'QKan.importhe.import_from_he')
+logger = logging.getLogger("QKan.importhe.import_from_he")
 
 
 # ------------------------------------------------------------------------------
 # Hauptprogramm
 
-def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
-                     dbtyp=u'SpatiaLite'):
+
+def importKanaldaten(
+    database_HE, database_QKan, projectfile, epsg, dbtyp="SpatiaLite"
+):
     """Import der Kanaldaten aus einer HE-Firebird-Datenbank und Schreiben in eine QKan-SpatiaLite-Datenbank.
 
     :database_HE:   Datenbankobjekt, das die Verknüpfung zur HE-Firebird-Datenbank verwaltet
@@ -67,25 +68,33 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     dbHE = FBConnection(database_HE)  # Datenbankobjekt der HE-Datenbank zum Lesen
 
     if dbHE is None:
-        fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                      u'ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!'.format(database_HE))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(database_HE),
+        )
         return None
 
-    dbQK = DBConnection(dbname=database_QKan, epsg=epsg)  # Datenbankobjekt der QKan-Datenbank zum Schreiben
+    dbQK = DBConnection(
+        dbname=database_QKan, epsg=epsg
+    )  # Datenbankobjekt der QKan-Datenbank zum Schreiben
     if not dbQK.connected:
         return None
 
     if dbQK is None:
-        fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                      u'QKan-Datenbank {:s} wurde nicht gefunden!\nAbbruch!'.format(database_QKan))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "QKan-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(
+                database_QKan
+            ),
+        )
         return None
 
-    # Referenztabellen laden. 
+    # Referenztabellen laden.
 
     # Entwässerungssystem. Attribut [bezeichnung] enthält die Bezeichnung des Benutzers.
     ref_entwart = {}
-    sql = u'SELECT he_nr, bezeichnung FROM entwaesserungsarten'
-    if not dbQK.sql(sql, u'importkanaldaten_he (1)'):
+    sql = "SELECT he_nr, bezeichnung FROM entwaesserungsarten"
+    if not dbQK.sql(sql, "importkanaldaten_he (1)"):
         return None
     daten = dbQK.fetchall()
     for el in daten:
@@ -93,8 +102,8 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # Pumpentypen. Attribut [bezeichnung] enthält die Bezeichnung des Benutzers.
     ref_pumpentyp = {}
-    sql = u'SELECT he_nr, bezeichnung FROM pumpentypen'
-    if not dbQK.sql(sql, u'importkanaldaten_he (2)'):
+    sql = "SELECT he_nr, bezeichnung FROM pumpentypen"
+    if not dbQK.sql(sql, "importkanaldaten_he (2)"):
         return None
     daten = dbQK.fetchall()
     for el in daten:
@@ -102,8 +111,8 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # Profile. Attribut [profilnam] enthält die Bezeichnung des Benutzers. Dies kann auch ein Kürzel sein.
     ref_profil = {}
-    sql = u'SELECT he_nr, profilnam FROM profile'
-    if not dbQK.sql(sql, u'importkanaldaten_he (3)'):
+    sql = "SELECT he_nr, profilnam FROM profile"
+    if not dbQK.sql(sql, "importkanaldaten_he (3)"):
         return None
     daten = dbQK.fetchall()
     for el in daten:
@@ -111,8 +120,8 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # Auslasstypen.
     ref_auslasstypen = {}
-    sql = u'SELECT he_nr, bezeichnung FROM auslasstypen'
-    if not dbQK.sql(sql, u'importkanaldaten_he (4)'):
+    sql = "SELECT he_nr, bezeichnung FROM auslasstypen"
+    if not dbQK.sql(sql, "importkanaldaten_he (4)"):
         return None
     daten = dbQK.fetchall()
     for el in daten:
@@ -120,8 +129,8 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # Simulationsstatus
     ref_simulationsstatus = {}
-    sql = u'SELECT he_nr, bezeichnung FROM simulationsstatus'
-    if not dbQK.sql(sql, u'importkanaldaten_he (5)'):
+    sql = "SELECT he_nr, bezeichnung FROM simulationsstatus"
+    if not dbQK.sql(sql, "importkanaldaten_he (5)"):
         return None
     daten = dbQK.fetchall()
     for el in daten:
@@ -129,7 +138,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # ------------------------------------------------------------------------------
     # Haltungsdaten
-    # Feld [abflussart] entspricht dem Eingabefeld "System", das in einem Nachschlagefeld die 
+    # Feld [abflussart] entspricht dem Eingabefeld "System", das in einem Nachschlagefeld die
     # Werte 'Freispiegel', 'Druckabfluss', 'Abfluss im offenen Profil' anbietet
 
     # Tabelle in QKan-Datenbank leeren
@@ -139,7 +148,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT 
         ROHR.NAME AS haltnam, 
         ROHR.SCHACHTOBEN AS schoben, 
@@ -169,42 +178,63 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     INNER JOIN (SELECT NAME, DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SCHACHT
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM AUSLASS
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SPEICHERSCHACHT) AS SU
-    ON ROHR.SCHACHTUNTEN = SU.NAME'''
+    ON ROHR.SCHACHTUNTEN = SU.NAME"""
     dbHE.sql(sql)
     daten = dbHE.fetchall()
 
     # Haltungsdaten in die QKan-DB schreiben
 
     for attr in daten:
-        (haltnam, schoben, schunten, hoehe, breite, laenge, sohleoben, sohleunten,
-         deckeloben, deckelunten, teilgebiet, profiltyp_he, profilnam,
-         entwaesserungsart_he, ks, simstat_he, kommentar, createdat, xob, yob, xun, yun) = \
-            ['NULL' if el is None else el for el in attr]
+        (
+            haltnam,
+            schoben,
+            schunten,
+            hoehe,
+            breite,
+            laenge,
+            sohleoben,
+            sohleunten,
+            deckeloben,
+            deckelunten,
+            teilgebiet,
+            profiltyp_he,
+            profilnam,
+            entwaesserungsart_he,
+            ks,
+            simstat_he,
+            kommentar,
+            createdat,
+            xob,
+            yob,
+            xun,
+            yun,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (haltnam, schoben, schunten, profilnam, kommentar) = \
-            # [tt.decode('iso-8859-1') for tt in (haltnam_ansi, schoben_ansi, schunten_ansi,
-                                                # profilnam_ansi, kommentar_ansi)]
+        # [tt.decode('iso-8859-1') for tt in (haltnam_ansi, schoben_ansi, schunten_ansi,
+        # profilnam_ansi, kommentar_ansi)]
 
         # Anwendung der Referenzlisten HE -> QKan
 
         # Rohrprofile. In HE werden primär Profilnummern verwendet. Bei Sonderprofilen ist die Profilnummer = 68
-        # und zur eindeutigen Identifikation dient stattdessen der Profilname. 
+        # und zur eindeutigen Identifikation dient stattdessen der Profilname.
         # In QKan wird ausschließlich der Profilname verwendet, so dass sichergestellt sein muss, dass die
-        # Standardbezeichnungen für die HE-Profile nicht auch als Namen für ein Sonderprofil verwendet werden. 
+        # Standardbezeichnungen für die HE-Profile nicht auch als Namen für ein Sonderprofil verwendet werden.
 
         if profiltyp_he in ref_profil:
             profilnam = ref_profil[profiltyp_he]
         else:
             # Noch nicht in Tabelle [profile] enthalten, also ergqenzen
-            if profilnam == u'NULL':
+            if profilnam == "NULL":
                 # In HE ist nur die Profilnummer enthalten. Dann muss ein Profilname erzeugt werden, z.B. (12)
-                profilnam = u'({profiltyp_he})'.format(profiltyp_he=profiltyp_he)
+                profilnam = "({profiltyp_he})".format(profiltyp_he=profiltyp_he)
 
             # In Referenztabelle in dieser Funktion sowie in der QKan-Tabelle profile einfügen
             ref_profil[profiltyp_he] = profilnam
-            sql = u"INSERT INTO profile (profilnam, he_nr) Values ('{profilnam}', {profiltyp_he})".format( \
-                profilnam=profilnam, profiltyp_he=profiltyp_he)
-            if not dbQK.sql(sql, u'importkanaldaten_he (7)'):
+            sql = "INSERT INTO profile (profilnam, he_nr) Values ('{profilnam}', {profiltyp_he})".format(
+                profilnam=profilnam, profiltyp_he=profiltyp_he
+            )
+            if not dbQK.sql(sql, "importkanaldaten_he (7)"):
                 return None
 
         # Entwasserungsarten. Hier ist es einfacher als bei den Profilen...
@@ -212,11 +242,12 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             entwart = ref_entwart[entwaesserungsart_he]
         else:
             # Noch nicht in Tabelle [entwaesserungsarten] enthalten, also ergqenzen
-            entwart = u'({})'.format(entwaesserungsart_he)
-            sql = u"INSERT INTO entwaesserungsarten (bezeichnung, he_nr) Values ('{entwart}', {he_nr})".format( \
-                entwart=entwart, he_nr=entwaesserungsart_he)
+            entwart = "({})".format(entwaesserungsart_he)
+            sql = "INSERT INTO entwaesserungsarten (bezeichnung, he_nr) Values ('{entwart}', {he_nr})".format(
+                entwart=entwart, he_nr=entwaesserungsart_he
+            )
             ref_entwart[entwaesserungsart_he] = entwart
-            if not dbQK.sql(sql, u'importkanaldaten_he (8)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (8)"):
                 return None
 
         # Simstatus-Nr aus HE ersetzten
@@ -224,48 +255,90 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (9)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (9)"):
                 return None
 
         # Geo-Objekt erzeugen
 
-        if dbtyp == u'SpatiaLite':
-            geom = u'MakeLine(MakePoint({0:},{1:},{4:s}),MakePoint({2:},{3:},{4:}))'.format(xob, yob, xun, yun, epsg)
-        elif dbtyp == u'postgis':
-            geom = u'ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:s}),ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))'.format(
-                xob, yob, xun, yun, epsg)
+        if dbtyp == "SpatiaLite":
+            geom = "MakeLine(MakePoint({0:},{1:},{4:s}),MakePoint({2:},{3:},{4:}))".format(
+                xob, yob, xun, yun, epsg
+            )
+        elif dbtyp == "postgis":
+            geom = "ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:s}),ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))".format(
+                xob, yob, xun, yun, epsg
+            )
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft: {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz aufbereiten in die QKan-DB schreiben
 
         try:
-            sql = u"""INSERT INTO haltungen 
+            sql = """INSERT INTO haltungen 
                 (geom, haltnam, schoben, schunten, 
                 hoehe, breite, laenge, sohleoben, sohleunten, 
                 deckeloben, deckelunten, teilgebiet, profilnam, entwart, ks, simstatus, kommentar, createdat) VALUES (
                 {geom}, '{haltnam}', '{schoben}', '{schunten}', {hoehe}, {breite}, {laenge}, 
                 {sohleoben}, {sohleunten}, {deckeloben}, {deckelunten}, '{teilgebiet}', '{profilnam}', 
-                '{entwart}', {ks}, '{simstatus}', '{kommentar}', '{createdat}')""".format( \
-                geom=geom, haltnam=haltnam, schoben=schoben, schunten=schunten, hoehe=hoehe,
-                breite=breite, laenge=laenge, sohleoben=sohleoben, sohleunten=sohleunten,
-                deckeloben=deckeloben, deckelunten=deckelunten, teilgebiet=teilgebiet,
-                profilnam=profilnam, entwart=entwart, ks=ks, simstatus=simstatus, kommentar=kommentar,
-                createdat=createdat)
+                '{entwart}', {ks}, '{simstatus}', '{kommentar}', '{createdat}')""".format(
+                geom=geom,
+                haltnam=haltnam,
+                schoben=schoben,
+                schunten=schunten,
+                hoehe=hoehe,
+                breite=breite,
+                laenge=laenge,
+                sohleoben=sohleoben,
+                sohleunten=sohleunten,
+                deckeloben=deckeloben,
+                deckelunten=deckelunten,
+                teilgebiet=teilgebiet,
+                profilnam=profilnam,
+                entwart=entwart,
+                ks=ks,
+                simstatus=simstatus,
+                kommentar=kommentar,
+                createdat=createdat,
+            )
         except BaseException as err:
-            fehlermeldung(u'SQL-Fehler', repr(err))
-            fehlermeldung(u"Fehler in QKan_Import_from_HE", u"\nFehler in sql INSERT INTO haltungen: \n" + \
-                          str((geom, haltnam, schoben, schunten,
-                               hoehe, breite, laenge, sohleoben, sohleunten,
-                               deckeloben, deckelunten, teilgebiet, profilnam, entwart, ks, simstatus)) + u'\n\n')
+            fehlermeldung("SQL-Fehler", repr(err))
+            fehlermeldung(
+                "Fehler in QKan_Import_from_HE",
+                "\nFehler in sql INSERT INTO haltungen: \n"
+                + str(
+                    (
+                        geom,
+                        haltnam,
+                        schoben,
+                        schunten,
+                        hoehe,
+                        breite,
+                        laenge,
+                        sohleoben,
+                        sohleunten,
+                        deckeloben,
+                        deckelunten,
+                        teilgebiet,
+                        profilnam,
+                        entwart,
+                        ks,
+                        simstatus,
+                    )
+                )
+                + "\n\n",
+            )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (10)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (10)"):
             return None
 
     dbQK.commit()
@@ -283,7 +356,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aus ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT 
         NAME AS schnam,
         XKOORDINATE AS xsch, 
@@ -296,7 +369,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         PLANUNGSSTATUS AS simstat_he, 
         KOMMENTAR AS kommentar, 
         LASTMODIFIED AS createdat
-        FROM SCHACHT'''
+        FROM SCHACHT"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -304,8 +377,19 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Schachtdaten aufbereiten und in die QKan-DB schreiben
 
     for attr in daten:
-        (schnam, xsch, ysch, sohlhoehe, deckelhoehe, durchm, druckdicht, entwaesserungsart_he,
-         simstat_he, kommentar, createdat) = ['NULL' if el is None else el for el in attr]
+        (
+            schnam,
+            xsch,
+            ysch,
+            sohlhoehe,
+            deckelhoehe,
+            durchm,
+            druckdicht,
+            entwaesserungsart_he,
+            simstat_he,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (schnam, kommentar) = [tt.decode('iso-8859-1') for tt in (schnam_ansi, kommentar_ansi)]
 
@@ -314,10 +398,11 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             entwart = ref_entwart[entwaesserungsart_he]
         else:
             # Noch nicht in Tabelle [entwaesserungsarten] enthalten, also ergänzen
-            sql = u"INSERT INTO entwaesserungsarten (bezeichnung, he_nr) Values ('({0:})', {0:d})".format(
-                entwaesserungsart_he)
-            entwart = u'({:})'.format(entwaesserungsart_he)
-            if not dbQK.sql(sql, u'importkanaldaten_he (12)'):
+            sql = "INSERT INTO entwaesserungsarten (bezeichnung, he_nr) Values ('({0:})', {0:d})".format(
+                entwaesserungsart_he
+            )
+            entwart = "({:})".format(entwaesserungsart_he)
+            if not dbQK.sql(sql, "importkanaldaten_he (12)"):
                 return None
 
         # Simstatus-Nr aus HE ersetzten
@@ -325,45 +410,62 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (13)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (13)"):
                 return None
 
         # Geo-Objekte erzeugen
 
-        if dbtyp == u'SpatiaLite':
-            geop = u'MakePoint({0:},{1:},{2:})'.format(xsch, ysch, epsg)
-            geom = u'CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))'.format(xsch, ysch,
-                                                                                              (
-                                                                                                  1. if durchm == 'NULL' else durchm / 1000.),
-                                                                                              epsg)
-        elif dbtyp == u'postgis':
-            geop = u'ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})'.format(xsch, ysch, epsg)
+        if dbtyp == "SpatiaLite":
+            geop = "MakePoint({0:},{1:},{2:})".format(xsch, ysch, epsg)
+            geom = "CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))".format(
+                xsch, ysch, (1.0 if durchm == "NULL" else durchm / 1000.0), epsg
+            )
+        elif dbtyp == "postgis":
+            geop = "ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})".format(xsch, ysch, epsg)
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft: {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz in die QKan-DB schreiben
 
         try:
-            sql = u"""INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, durchm, druckdicht, entwart, 
+            sql = """INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, durchm, druckdicht, entwart, 
                                         schachttyp, simstatus, kommentar, createdat, geop, geom)
             VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, {durchm}, {druckdicht}, '{entwart}', 
                      '{schachttyp}', '{simstatus}', '{kommentar}', '{createdat}', 
-                     {geop}, {geom})""".format( \
-                schnam=schnam, xsch=xsch, ysch=ysch, sohlhoehe=sohlhoehe, deckelhoehe=deckelhoehe,
-                durchm=durchm, druckdicht=druckdicht, entwart=entwart,
-                schachttyp=u'Schacht', simstatus=simstatus,
-                kommentar=kommentar, createdat=createdat, geop=geop, geom=geom)
-            if not dbQK.sql(sql, u'importkanaldaten_he (14)'):
+                     {geop}, {geom})""".format(
+                schnam=schnam,
+                xsch=xsch,
+                ysch=ysch,
+                sohlhoehe=sohlhoehe,
+                deckelhoehe=deckelhoehe,
+                durchm=durchm,
+                druckdicht=druckdicht,
+                entwart=entwart,
+                schachttyp="Schacht",
+                simstatus=simstatus,
+                kommentar=kommentar,
+                createdat=createdat,
+                geop=geop,
+                geom=geom,
+            )
+            if not dbQK.sql(sql, "importkanaldaten_he (14)"):
                 return None
         except BaseException as err:
-            fehlermeldung(u'SQL-Fehler', repr(err))
-            fehlermeldung(u"Fehler in QKan_Import_from_HE (14)", u"\nSchächte: in sql: \n" + sql + u'\n\n')
+            fehlermeldung("SQL-Fehler", repr(err))
+            fehlermeldung(
+                "Fehler in QKan_Import_from_HE (14)",
+                "\nSchächte: in sql: \n" + sql + "\n\n",
+            )
 
     dbQK.commit()
 
@@ -377,7 +479,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aus ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT NAME AS schnam, 
         GELAENDEHOEHE AS deckelhoehe, 
         SOHLHOEHE AS sohlhoehe, 
@@ -387,17 +489,26 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         PLANUNGSSTATUS AS simstat_he, 
         KOMMENTAR AS kommentar, 
         LASTMODIFIED AS createdat 
-        FROM SPEICHERSCHACHT'''
+        FROM SPEICHERSCHACHT"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
 
     # Speicherschachtdaten aufbereiten und in die QKan-DB schreiben
 
-    logger.debug(u'simstatus[0]: {}'.format(ref_simulationsstatus[0]))
+    logger.debug("simstatus[0]: {}".format(ref_simulationsstatus[0]))
     for attr in daten:
-        (schnam, deckelhoehe, sohlhoehe, xsch, ysch, ueberstauflaeche, simstat_he, kommentar,
-         createdat) = ['NULL' if el is None else el for el in attr]
+        (
+            schnam,
+            deckelhoehe,
+            sohlhoehe,
+            xsch,
+            ysch,
+            ueberstauflaeche,
+            simstat_he,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (schnam, kommentar) = [tt.decode('iso-8859-1') for tt in (schnam_ansi, kommentar_ansi)]
 
@@ -406,41 +517,53 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (16)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (16)"):
                 return None
 
         # Geo-Objekte erzeugen
 
-        if dbtyp == u'SpatiaLite':
-            geop = u'MakePoint({0:},{1:},{2:})'.format(xsch, ysch, epsg)
-            geom = u'CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))'.format(xsch, ysch,
-                                                                                              (
-                                                                                                  1. if durchm == 'NULL' else durchm / 1000.),
-                                                                                              epsg)
-        elif dbtyp == u'postgis':
-            geop = u'ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})'.format(xsch, ysch, epsg)
+        if dbtyp == "SpatiaLite":
+            geop = "MakePoint({0:},{1:},{2:})".format(xsch, ysch, epsg)
+            geom = "CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))".format(
+                xsch, ysch, (1.0 if durchm == "NULL" else durchm / 1000.0), epsg
+            )
+        elif dbtyp == "postgis":
+            geop = "ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})".format(xsch, ysch, epsg)
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz in die QKan-DB schreiben
 
-        sql = u"""INSERT INTO schaechte (schnam, deckelhoehe, sohlhoehe, xsch, ysch, ueberstauflaeche, 
+        sql = """INSERT INTO schaechte (schnam, deckelhoehe, sohlhoehe, xsch, ysch, ueberstauflaeche, 
                     schachttyp, simstatus, kommentar, createdat, geop, geom)
             VALUES ('{schnam}', {deckelhoehe}, {sohlhoehe}, {xsch}, {ysch}, {ueberstauflaeche}, 
                     '{schachttyp}', '{simstatus}', '{kommentar}', '{createdat}', 
-                    {geop}, {geom})""".format( \
-            schnam=schnam, deckelhoehe=deckelhoehe, sohlhoehe=sohlhoehe,
-            xsch=xsch, ysch=ysch, ueberstauflaeche=ueberstauflaeche,
-            schachttyp=u'Speicher', simstatus=simstatus, kommentar=kommentar,
-            createdat=createdat, geop=geop, geom=geom)
+                    {geop}, {geom})""".format(
+            schnam=schnam,
+            deckelhoehe=deckelhoehe,
+            sohlhoehe=sohlhoehe,
+            xsch=xsch,
+            ysch=ysch,
+            ueberstauflaeche=ueberstauflaeche,
+            schachttyp="Speicher",
+            simstatus=simstatus,
+            kommentar=kommentar,
+            createdat=createdat,
+            geop=geop,
+            geom=geom,
+        )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (17)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (17)"):
             return None
 
     dbQK.commit()
@@ -456,7 +579,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT NAME AS schnam, 
         XKOORDINATE AS xsch, 
         YKOORDINATE AS ysch, 
@@ -466,7 +589,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         PLANUNGSSTATUS AS simstat_he, 
         KOMMENTAR AS kommentar, 
         LASTMODIFIED AS createdat 
-        FROM AUSLASS'''
+        FROM AUSLASS"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -474,8 +597,17 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Daten aufbereiten und in die QKan-DB schreiben
 
     for attr in daten:
-        (schnam, xsch, ysch, sohlhoehe, deckelhoehe, typ_he, simstat_he, kommentar, createdat) = \
-            ['NULL' if el is None else el for el in attr]
+        (
+            schnam,
+            xsch,
+            ysch,
+            sohlhoehe,
+            deckelhoehe,
+            typ_he,
+            simstat_he,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (schnam, kommentar) = [tt.decode('iso-8859-1') for tt in (schnam_ansi, kommentar_ansi)]
 
@@ -484,11 +616,12 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             auslasstyp = ref_auslasstypen[typ_he]
         else:
             # Noch nicht in Tabelle [auslasstypen] enthalten, also ergqenzen
-            auslasstyp = u'({}_he)'.format(typ_he)
-            sql = u"INSERT INTO auslasstypen (bezeichnung, he_nr) Values ('{auslasstyp}', {he_nr})".format( \
-                auslasstyp=auslasstyp, he_nr=typ_he)
+            auslasstyp = "({}_he)".format(typ_he)
+            sql = "INSERT INTO auslasstypen (bezeichnung, he_nr) Values ('{auslasstyp}', {he_nr})".format(
+                auslasstyp=auslasstyp, he_nr=typ_he
+            )
             ref_auslasstypen[typ_he] = auslasstyp
-            if not dbQK.sql(sql, u'importkanaldaten_he (19)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (19)"):
                 return None
 
         # Simstatus-Nr aus HE ersetzten
@@ -496,38 +629,52 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (20)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (20)"):
                 return None
 
         # Geo-Objekte erzeugen
 
-        if dbtyp == u'SpatiaLite':
-            geop = u'MakePoint({0:},{1:},{2:})'.format(xsch, ysch, epsg)
-            geom = u'CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))'.format(xsch, ysch, 1., epsg)
-        elif dbtyp == u'postgis':
-            geop = u'ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})'.format(xsch, ysch, epsg)
+        if dbtyp == "SpatiaLite":
+            geop = "MakePoint({0:},{1:},{2:})".format(xsch, ysch, epsg)
+            geom = "CastToMultiPolygon(MakePolygon(MakeCircle({0:},{1:},{2:},{3:})))".format(
+                xsch, ysch, 1.0, epsg
+            )
+        elif dbtyp == "postgis":
+            geop = "ST_SetSRID(ST_MakePoint({0:},{1:}),{2:})".format(xsch, ysch, epsg)
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft: {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz in die QKan-DB schreiben
 
-        sql = u"""INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, 
+        sql = """INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, 
                     auslasstyp, schachttyp, simstatus, kommentar, createdat, geop, geom)
             VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, '{auslasstyp}', 
                     '{schachttyp}', '{simstatus}', '{kommentar}', 
-                    '{createdat}', {geop}, {geom})""".format(schnam=schnam, xsch=xsch, ysch=ysch,
-                                                             sohlhoehe=sohlhoehe, deckelhoehe=deckelhoehe,
-                                                             auslasstyp=auslasstyp,
-                                                             schachttyp=u'Auslass', simstatus=simstatus,
-                                                             kommentar=kommentar, createdat=createdat, geop=geop,
-                                                             geom=geom)
-        if not dbQK.sql(sql, u'importkanaldaten_he (21)'):
+                    '{createdat}', {geop}, {geom})""".format(
+            schnam=schnam,
+            xsch=xsch,
+            ysch=ysch,
+            sohlhoehe=sohlhoehe,
+            deckelhoehe=deckelhoehe,
+            auslasstyp=auslasstyp,
+            schachttyp="Auslass",
+            simstatus=simstatus,
+            kommentar=kommentar,
+            createdat=createdat,
+            geop=geop,
+            geom=geom,
+        )
+        if not dbQK.sql(sql, "importkanaldaten_he (21)"):
             return None
 
     dbQK.commit()
@@ -542,7 +689,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT 
         PUMPE.NAME AS pnam, 
         PUMPE.SCHACHTOBEN AS schoben, 
@@ -564,29 +711,44 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     LEFT JOIN (SELECT NAME, DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SCHACHT
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM AUSLASS
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SPEICHERSCHACHT) AS SU
-    ON PUMPE.SCHACHTUNTEN = SU.NAME'''
+    ON PUMPE.SCHACHTUNTEN = SU.NAME"""
     dbHE.sql(sql)
     daten = dbHE.fetchall()
 
     # Pumpendaten in die QKan-DB schreiben
 
     for attr in daten:
-        (pnam, schoben, schunten, typ_he, steuersch, einschalthoehe, ausschalthoehe,
-         xob, yob, xun, yun, simstat_he, kommentar, createdat) = ['NULL' if el is None else el for el in attr]
+        (
+            pnam,
+            schoben,
+            schunten,
+            typ_he,
+            steuersch,
+            einschalthoehe,
+            ausschalthoehe,
+            xob,
+            yob,
+            xun,
+            yun,
+            simstat_he,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (pnam, schoben, schunten, kommentar) = [tt.decode('iso-8859-1') for tt in (pnam_ansi, schoben_ansi,
-                                                                                   # schunten_ansi, kommentar_ansi)]
+        # schunten_ansi, kommentar_ansi)]
 
         # Pumpentyp-Nr aus HE ersetzten
         if typ_he in ref_pumpentyp:
             pumpentyp = ref_pumpentyp[typ_he]
         else:
             # Noch nicht in Tabelle [pumpentypen] enthalten, also ergqenzen
-            pumpentyp = u'({}_he)'.format(typ_he)
-            sql = u"INSERT INTO pumpentypen (bezeichnung, he_nr) Values ('{pumpentyp}', {he_nr})".format( \
-                pumpentyp=pumpentyp, he_nr=typ_he)
+            pumpentyp = "({}_he)".format(typ_he)
+            sql = "INSERT INTO pumpentypen (bezeichnung, he_nr) Values ('{pumpentyp}', {he_nr})".format(
+                pumpentyp=pumpentyp, he_nr=typ_he
+            )
             ref_pumpentyp[typ_he] = pumpentyp
-            if not dbQK.sql(sql, u'importkanaldaten_he (23)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (23)"):
                 return None
 
         # Simstatus-Nr aus HE ersetzten
@@ -594,52 +756,81 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (24)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (24)"):
                 return None
 
         # Geo-Objekt erzeugen
 
-        if xun == u'NULL' or yun == u'NULL':
+        if xun == "NULL" or yun == "NULL":
             # Es gibt keinen Schacht unten. Dann wird die Pumpe grafisch nach rechs oben
             # erzeugt
-            xun = u'{:.3f}'.format(float(xob) + 10.)
-            yun = u'{:.3f}'.format(float(yob) + 10.)
+            xun = "{:.3f}".format(float(xob) + 10.0)
+            yun = "{:.3f}".format(float(yob) + 10.0)
 
-        if dbtyp == u'SpatiaLite':
-            geom = u'MakeLine(MakePoint({0:},{1:},{4:s}),MakePoint({2:},{3:},{4:}))'.format(xob, yob, xun, yun, epsg)
-        elif dbtyp == u'postgis':
-            geom = u'''ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:}),
-                      ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))'''.format(xob, yob, xun, yun, epsg)
+        if dbtyp == "SpatiaLite":
+            geom = "MakeLine(MakePoint({0:},{1:},{4:s}),MakePoint({2:},{3:},{4:}))".format(
+                xob, yob, xun, yun, epsg
+            )
+        elif dbtyp == "postgis":
+            geom = """ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:}),
+                      ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))""".format(
+                xob, yob, xun, yun, epsg
+            )
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft: {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
         try:
-            sql = u"""INSERT INTO pumpen 
+            sql = """INSERT INTO pumpen 
                 (pnam, schoben, schunten, pumpentyp, steuersch, einschalthoehe, ausschalthoehe, 
                 simstatus, kommentar, createdat, geom) 
                 VALUES ('{pnam}', '{schoben}', '{schunten}', '{pumpentyp}', '{steuersch}', 
-                {einschalthoehe}, {ausschalthoehe}, '{simstatus}', '{kommentar}', '{createdat}', {geom})""".format( \
-                pnam=pnam, schoben=schoben, schunten=schunten, pumpentyp=pumpentyp, steuersch=steuersch,
-                einschalthoehe=einschalthoehe, ausschalthoehe=ausschalthoehe, simstatus=simstatus,
-                kommentar=kommentar, createdat=createdat, geom=geom)
+                {einschalthoehe}, {ausschalthoehe}, '{simstatus}', '{kommentar}', '{createdat}', {geom})""".format(
+                pnam=pnam,
+                schoben=schoben,
+                schunten=schunten,
+                pumpentyp=pumpentyp,
+                steuersch=steuersch,
+                einschalthoehe=einschalthoehe,
+                ausschalthoehe=ausschalthoehe,
+                simstatus=simstatus,
+                kommentar=kommentar,
+                createdat=createdat,
+                geom=geom,
+            )
 
         except BaseException as err:
-            fehlermeldung(u'SQL-Fehler', repr(err))
-            fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                          u"\nFehler in sql INSERT INTO pumpen: \n" + str((pnam, schoben, \
-                                                                           schunten, pumpentyp, steuersch,
-                                                                           einschalthoehe, ausschalthoehe,
-                                                                           geom)) + u'\n\n')
+            fehlermeldung("SQL-Fehler", repr(err))
+            fehlermeldung(
+                "Fehler in QKan_Import_from_HE",
+                "\nFehler in sql INSERT INTO pumpen: \n"
+                + str(
+                    (
+                        pnam,
+                        schoben,
+                        schunten,
+                        pumpentyp,
+                        steuersch,
+                        einschalthoehe,
+                        ausschalthoehe,
+                        geom,
+                    )
+                )
+                + "\n\n",
+            )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (25)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (25)"):
             return None
     dbQK.commit()
 
@@ -653,7 +844,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT 
         WEHR.NAME AS wnam,
         WEHR.SCHACHTOBEN AS schoben, 
@@ -676,78 +867,122 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     LEFT JOIN (SELECT NAME, DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SCHACHT
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM AUSLASS
          UNION SELECT NAME, GELAENDEHOEHE AS DECKELHOEHE, XKOORDINATE, YKOORDINATE FROM SPEICHERSCHACHT) AS SU
-    ON WEHR.SCHACHTUNTEN = SU.NAME'''
+    ON WEHR.SCHACHTUNTEN = SU.NAME"""
     dbHE.sql(sql)
     daten = dbHE.fetchall()
 
     # Wehrdaten in die QKan-DB schreiben
 
     for attr in daten:
-        (wnam, schoben, schunten, typ_he, schwellenhoehe, kammerhoehe, laenge, uebeiwert,
-         xob, yob, xun, yun, simstat_he, kommentar, createdat) = ['NULL' if el is None else el for el in attr]
+        (
+            wnam,
+            schoben,
+            schunten,
+            typ_he,
+            schwellenhoehe,
+            kammerhoehe,
+            laenge,
+            uebeiwert,
+            xob,
+            yob,
+            xun,
+            yun,
+            simstat_he,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (wnam, schoben, schunten, kommentar) = [tt.decode('iso-8859-1') for tt in (wnam_ansi, schoben_ansi,
-                                                                                   # schunten_ansi, kommentar_ansi)]
+        # schunten_ansi, kommentar_ansi)]
 
         # Simstatus-Nr aus HE ersetzten
         if simstat_he in ref_simulationsstatus:
             simstatus = ref_simulationsstatus[simstat_he]
         else:
             # Noch nicht in Tabelle [simulationsstatus] enthalten, also ergqenzen
-            simstatus = u'({}_he)'.format(simstat_he)
-            sql = u"INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format( \
-                simstatus=simstatus, he_nr=simstat_he)
+            simstatus = "({}_he)".format(simstat_he)
+            sql = "INSERT INTO simulationsstatus (bezeichnung, he_nr) Values ('{simstatus}', {he_nr})".format(
+                simstatus=simstatus, he_nr=simstat_he
+            )
             ref_simulationsstatus[simstat_he] = simstatus
-            if not dbQK.sql(sql, u'importkanaldaten_he (27)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (27)"):
                 return None
 
         # Geo-Objekt erzeugen
 
-        if xun == u'NULL' or yun == u'NULL':
+        if xun == "NULL" or yun == "NULL":
             # Es gibt keinen Schacht unten. Dann wird die Pumpe grafisch nach rechs oben
             # erzeugt
-            xun = u'{:.3f}'.format(float(xob) + 10.)
-            yun = u'{:.3f}'.format(float(yob) + 10.)
+            xun = "{:.3f}".format(float(xob) + 10.0)
+            yun = "{:.3f}".format(float(yob) + 10.0)
 
-        if dbtyp == u'SpatiaLite':
-            geom = u'MakeLine(MakePoint({0:},{1:},{4:}),MakePoint({2:},{3:},{4:}))'.format(xob, yob, xun, yun, epsg)
-        elif dbtyp == u'postgis':
-            geom = u'ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:}),ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))'.format(
-                xob, yob, xun, yun, epsg)
+        if dbtyp == "SpatiaLite":
+            geom = "MakeLine(MakePoint({0:},{1:},{4:}),MakePoint({2:},{3:},{4:}))".format(
+                xob, yob, xun, yun, epsg
+            )
+        elif dbtyp == "postgis":
+            geom = "ST_MakeLine(ST_SetSRID(ST_MakePoint({0:},{1:}),{4:}),ST_SetSRID(ST_MakePoint({2:},{3:}),{4:}))".format(
+                xob, yob, xun, yun, epsg
+            )
         else:
-            fehlermeldung('Programmfehler!',
-                          'Datenbanktyp ist fehlerhaft {0:s}, Endung: {1:s}!\nAbbruch!'.format(dbtyp,
-                                                                                               dbdatabase[-7:].lower()))
+            fehlermeldung(
+                "Programmfehler!",
+                "Datenbanktyp ist fehlerhaft {}!\nAbbruch!".format(
+                    dbtyp
+                ),
+            )
 
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
         try:
-            sql = u"""INSERT INTO wehre (wnam, schoben, schunten, schwellenhoehe, kammerhoehe,
+            sql = """INSERT INTO wehre (wnam, schoben, schunten, schwellenhoehe, kammerhoehe,
                  laenge, uebeiwert, simstatus, kommentar, createdat, geom) 
                  VALUES ('{wnam}', '{schoben}', '{schunten}', {schwellenhoehe},
                 {kammerhoehe}, {laenge}, {uebeiwert}, '{simstatus}', '{kommentar}', '{createdat}', 
-                {geom})""".format(wnam=wnam,
-                                  schoben=schoben, schunten=schunten, schwellenhoehe=schwellenhoehe,
-                                  kammerhoehe=kammerhoehe, laenge=laenge, uebeiwert=uebeiwert, simstatus=simstatus,
-                                  kommentar=kommentar, createdat=createdat, geom=geom)
+                {geom})""".format(
+                wnam=wnam,
+                schoben=schoben,
+                schunten=schunten,
+                schwellenhoehe=schwellenhoehe,
+                kammerhoehe=kammerhoehe,
+                laenge=laenge,
+                uebeiwert=uebeiwert,
+                simstatus=simstatus,
+                kommentar=kommentar,
+                createdat=createdat,
+                geom=geom,
+            )
             ok = True
         except BaseException as err:
-            fehlermeldung(u'Fehler', repr(err))
+            fehlermeldung("Fehler", repr(err))
             ok = False
-            fehlermeldung(u"Fehler in QKan_Import_from_HE",
-                          u"\nFehler in sql INSERT INTO wehre: \n" + str((wnam, schoben, schunten,
-                                                                          schwellenhoehe, kammerhoehe, laenge,
-                                                                          uebeiwert, geom)) + u'\n\n')
+            fehlermeldung(
+                "Fehler in QKan_Import_from_HE",
+                "\nFehler in sql INSERT INTO wehre: \n"
+                + str(
+                    (
+                        wnam,
+                        schoben,
+                        schunten,
+                        schwellenhoehe,
+                        kammerhoehe,
+                        laenge,
+                        uebeiwert,
+                        geom,
+                    )
+                )
+                + "\n\n",
+            )
 
         if ok:
-            if not dbQK.sql(sql, u'importkanaldaten_he (28)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (28)"):
                 return None
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
     # Einzugsgebiete
 
-    # Tabelle in QKan-Datenbank bleibt bestehen, damit gegebenenfalls erstellte 
+    # Tabelle in QKan-Datenbank bleibt bestehen, damit gegebenenfalls erstellte
     # Teileinzugsgebiete, deren Geo-Objekte ja in HYSTEM-EXTRAN nicht verwaltet
     # werden können, erhalten bleiben. Deshalb wird beim Import geprüft, ob das
     # jeweilige Objekt schon vorhanden ist.
@@ -756,7 +991,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     #     return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
     SELECT 
         NAME AS tgnam,
         EINWOHNERDICHTE AS ewdichte,
@@ -767,7 +1002,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         KOMMENTAR AS kommentar,
         LASTMODIFIED AS createdat
     FROM
-        teileinzugsgebiet'''
+        teileinzugsgebiet"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -775,31 +1010,59 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Teileinzugsgebietsdaten in die QKan-DB schreiben
 
     for attr in daten:
-        (tgnam, ewdichte, wverbrauch, stdmittel, fremdwas, flaeche, kommentar, createdat) = [
-            u'NULL' if el is None else el for el in attr]
+        (
+            tgnam,
+            ewdichte,
+            wverbrauch,
+            stdmittel,
+            fremdwas,
+            flaeche,
+            kommentar,
+            createdat,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (tgnam, kommentar) = [tt.decode('iso-8859-1') for tt in (tgnam_ansi, kommentar_ansi)]
 
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
         try:
-            sql = u"""
+            sql = """
               INSERT INTO einzugsgebiete (tgnam, ewdichte, wverbrauch, stdmittel,
                 fremdwas, kommentar, createdat) 
               VALUES ('{tgnam}', {ewdichte}, {wverbrauch}, {stdmittel}, {fremdwas},
                 '{kommentar}', '{createdat}')
-                 """.format(tgnam=tgnam, ewdichte=ewdichte, wverbrauch=wverbrauch, stdmittel=stdmittel,
-                            fremdwas=fremdwas, kommentar=kommentar, createdat=createdat)
+                 """.format(
+                tgnam=tgnam,
+                ewdichte=ewdichte,
+                wverbrauch=wverbrauch,
+                stdmittel=stdmittel,
+                fremdwas=fremdwas,
+                kommentar=kommentar,
+                createdat=createdat,
+            )
             ok = True
         except BaseException as err:
-            fehlermeldung(u'SQL-Fehler', repr(err))
-            fehlermeldung(u"Fehler in QKan_Import_from_HE", u"\nFehler in sql INSERT INTO einzugsgebiete: \n" + \
-                          repr((tgnam, ewdichte, wverbrauch, stdmittel,
-                                fremdwas, kommentar, createdat)) + u'\n\n')
+            fehlermeldung("SQL-Fehler", repr(err))
+            fehlermeldung(
+                "Fehler in QKan_Import_from_HE",
+                "\nFehler in sql INSERT INTO einzugsgebiete: \n"
+                + repr(
+                    (
+                        tgnam,
+                        ewdichte,
+                        wverbrauch,
+                        stdmittel,
+                        fremdwas,
+                        kommentar,
+                        createdat,
+                    )
+                )
+                + "\n\n",
+            )
             ok = False
 
         if ok:
-            if not dbQK.sql(sql, u'importkanaldaten_he (30)'):
+            if not dbQK.sql(sql, "importkanaldaten_he (30)"):
                 return None
     dbQK.commit()
 
@@ -813,7 +1076,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
         SELECT 
             NAME AS schnam, 
             KEYWERT + SOHLHOEHE AS wspiegel, 
@@ -821,7 +1084,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         FROM TABELLENINHALTE 
         JOIN SPEICHERSCHACHT 
         ON TABELLENINHALTE.ID = SPEICHERSCHACHT.ID 
-        ORDER BY SPEICHERSCHACHT.ID, TABELLENINHALTE.REIHENFOLGE'''
+        ORDER BY SPEICHERSCHACHT.ID, TABELLENINHALTE.REIHENFOLGE"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -829,17 +1092,18 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Speicherdaten in die QKan-DB schreiben
 
     for attr in daten:
-        (schnam, wspiegel, oberfl) = ['NULL' if el is None else el for el in attr]
+        (schnam, wspiegel, oberfl) = ["NULL" if el is None else el for el in attr]
 
         # schnam = schnam_ansi.decode('iso-8859-1')
 
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
-        sql = u"""INSERT INTO speicherkennlinien (schnam, wspiegel, oberfl) 
-             VALUES ('{schnam}', {wspiegel}, {oberfl})""".format(schnam=schnam,
-                                                                 wspiegel=wspiegel, oberfl=oberfl)
+        sql = """INSERT INTO speicherkennlinien (schnam, wspiegel, oberfl) 
+             VALUES ('{schnam}', {wspiegel}, {oberfl})""".format(
+            schnam=schnam, wspiegel=wspiegel, oberfl=oberfl
+        )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (32)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (32)"):
             return None
     dbQK.commit()
 
@@ -853,7 +1117,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
         SELECT 
             NAME AS profilnam, 
             KEYWERT AS wspiegel, 
@@ -861,7 +1125,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         FROM TABELLENINHALTE 
         JOIN SONDERPROFIL 
         ON TABELLENINHALTE.ID = SONDERPROFIL.ID 
-        ORDER BY SONDERPROFIL.ID, TABELLENINHALTE.REIHENFOLGE'''
+        ORDER BY SONDERPROFIL.ID, TABELLENINHALTE.REIHENFOLGE"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -869,17 +1133,18 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Profil in die QKan-DB schreiben
 
     for attr in daten:
-        (profilnam, wspiegel, wbreite) = ['NULL' if el is None else el for el in attr]
+        (profilnam, wspiegel, wbreite) = ["NULL" if el is None else el for el in attr]
 
         # profilnam = profilnam_ansi.decode('iso-8859-1')
 
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
-        sql = u"""INSERT INTO profildaten (profilnam, wspiegel, wbreite) 
-             VALUES ('{profilnam}', {wspiegel}, {wbreite})""".format(profilnam=profilnam,
-                                                                     wspiegel=wspiegel, wbreite=wbreite)
+        sql = """INSERT INTO profildaten (profilnam, wspiegel, wbreite) 
+             VALUES ('{profilnam}', {wspiegel}, {wbreite})""".format(
+            profilnam=profilnam, wspiegel=wspiegel, wbreite=wbreite
+        )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (34)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (34)"):
             return None
     dbQK.commit()
 
@@ -893,7 +1158,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # return None
 
     # Daten aUS ITWH-Datenbank abfragen
-    sql = u'''
+    sql = """
         SELECT 
             NAME AS apnam,
             ABFLUSSBEIWERTANFANG AS anfangsabflussbeiwert,
@@ -906,7 +1171,7 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
             BODENKLASSE AS bodenklasse,
             LASTMODIFIED AS createdat,
             KOMMENTAR AS kommentar
-        FROM ABFLUSSPARAMETER'''
+        FROM ABFLUSSPARAMETER"""
 
     dbHE.sql(sql)
     daten = dbHE.fetchall()
@@ -914,31 +1179,41 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # Abflussparameter in die QKan-DB schreiben
 
     # Zuerst sicherstellen, dass die Datensätze nicht schon vorhanden sind. Falls doch, werden sie überschrieben
-    sql = u'SELECT apnam FROM abflussparameter'
-    if not dbQK.sql(sql, u'importkanaldaten_he (36)'):
+    sql = "SELECT apnam FROM abflussparameter"
+    if not dbQK.sql(sql, "importkanaldaten_he (36)"):
         return None
     datqk = [el[0] for el in dbQK.fetchall()]
 
     for attr in daten:
-        (apnam, anfangsabflussbeiwert, endabflussbeiwert, muldenverlust, benetzungsverlust,
-         benetzung_startwert, mulden_startwert, aptyp, bodenklasse, createdat, kommentar) = \
-            ['NULL' if el is None else el for el in attr]
+        (
+            apnam,
+            anfangsabflussbeiwert,
+            endabflussbeiwert,
+            muldenverlust,
+            benetzungsverlust,
+            benetzung_startwert,
+            mulden_startwert,
+            aptyp,
+            bodenklasse,
+            createdat,
+            kommentar,
+        ) = ["NULL" if el is None else el for el in attr]
 
         # (apnam, bodenklasse, kommentar) = [tt.decode('iso-8859-1') for tt in
-                                           # (apnam_ansi, bodenklasse_ansi, kommentar_ansi)]
+        # (apnam_ansi, bodenklasse_ansi, kommentar_ansi)]
 
         if aptyp == 0:
-            bodenklasse = u'NULL'  # in QKan default für befestigte Flächen
+            bodenklasse = "NULL"  # in QKan default für befestigte Flächen
 
         # Datensatz in die QKan-DB schreiben
 
         # Falls Datensatz bereits vorhanden: löschen
         if apnam in datqk:
-            sql = u"DELETE FROM abflussparameter WHERE apnam = '{}'".format(apnam)
-            if not dbQK.sql(sql, u'importkanaldaten_he (37)'):
+            sql = "DELETE FROM abflussparameter WHERE apnam = '{}'".format(apnam)
+            if not dbQK.sql(sql, "importkanaldaten_he (37)"):
                 return None
 
-        sql = u"""INSERT INTO abflussparameter
+        sql = """INSERT INTO abflussparameter
               ( apnam, anfangsabflussbeiwert, endabflussbeiwert, 
                 benetzungsverlust, muldenverlust, 
                 benetzung_startwert, mulden_startwert, 
@@ -947,17 +1222,20 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
               ( '{apnam}', {anfangsabflussbeiwert}, {endabflussbeiwert}, 
                 {benetzungsverlust}, {muldenverlust}, 
                 {benetzung_startwert}, {mulden_startwert}, 
-                '{bodenklasse}', '{kommentar}', '{createdat}')""".format(apnam=apnam,
-                                                                         anfangsabflussbeiwert=anfangsabflussbeiwert,
-                                                                         endabflussbeiwert=endabflussbeiwert,
-                                                                         benetzungsverlust=benetzungsverlust,
-                                                                         muldenverlust=muldenverlust,
-                                                                         benetzung_startwert=benetzung_startwert,
-                                                                         mulden_startwert=mulden_startwert,
-                                                                         bodenklasse=bodenklasse, kommentar=kommentar,
-                                                                         createdat=createdat)
+                '{bodenklasse}', '{kommentar}', '{createdat}')""".format(
+            apnam=apnam,
+            anfangsabflussbeiwert=anfangsabflussbeiwert,
+            endabflussbeiwert=endabflussbeiwert,
+            benetzungsverlust=benetzungsverlust,
+            muldenverlust=muldenverlust,
+            benetzung_startwert=benetzung_startwert,
+            mulden_startwert=mulden_startwert,
+            bodenklasse=bodenklasse,
+            kommentar=kommentar,
+            createdat=createdat,
+        )
 
-        if not dbQK.sql(sql, u'importkanaldaten_he (38)'):
+        if not dbQK.sql(sql, "importkanaldaten_he (38)"):
             return None
     dbQK.commit()
 
@@ -966,31 +1244,37 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
     # --------------------------------------------------------------------------
     # Zoom-Bereich für die Projektdatei vorbereiten
-    sql = u'''SELECT min(xkoordinate) AS xmin, 
+    sql = """SELECT min(xkoordinate) AS xmin, 
                     max(xkoordinate) AS xmax, 
                     min(ykoordinate) AS ymin, 
                     max(ykoordinate) AS ymax
-             FROM SCHACHT'''
+             FROM SCHACHT"""
     try:
         dbHE.sql(sql)
     except BaseException as err:
-        fehlermeldung(u'SQL-Fehler', repr(err))
-        fehlermeldung(u"Fehler in QKan_Import_from_HE", u"\nFehler in sql_zoom: \n" + sql + u'\n\n')
+        fehlermeldung("SQL-Fehler", repr(err))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "\nFehler in sql_zoom: \n" + sql + "\n\n",
+        )
 
     daten = dbHE.fetchone()
     try:
         zoomxmin, zoomxmax, zoomymin, zoomymax = daten
     except BaseException as err:
-        fehlermeldung(u'SQL-Fehler', repr(err))
-        fehlermeldung(u"Fehler in QKan_Import_from_HE", u"\nFehler in sql_zoom; daten= " + str(daten) + u'\n')
+        fehlermeldung("SQL-Fehler", repr(err))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "\nFehler in sql_zoom; daten= " + str(daten) + "\n",
+        )
 
     # --------------------------------------------------------------------------
     # Projektionssystem für die Projektdatei vorbereiten
-    sql = u"""SELECT srid
+    sql = """SELECT srid
             FROM geom_cols_ref_sys
             WHERE Lower(f_table_name) = Lower('schaechte')
             AND Lower(f_geometry_column) = Lower('geom')"""
-    if not dbQK.sql(sql, u'importkanaldaten_he (45)'):
+    if not dbQK.sql(sql, "importkanaldaten_he (45)"):
         return None
 
     srid = dbQK.fetchone()[0]
@@ -1000,16 +1284,25 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         proj4text = crs.toProj4()
         description = crs.description()
         projectionacronym = crs.projectionAcronym()
-        if u'ellipsoidacronym' in dir(crs):
+        if "ellipsoidacronym" in dir(crs):
             ellipsoidacronym = crs.ellipsoidacronym()
         else:
             ellipsoidacronym = None
     except BaseException as err:
-        srid, srsid, proj4text, description, projectionacronym, ellipsoidacronym = \
-            u'dummy', u'dummy', u'dummy', u'dummy', u'dummy', u'dummy'
+        srid, srsid, proj4text, description, projectionacronym, ellipsoidacronym = (
+            "dummy",
+            "dummy",
+            "dummy",
+            "dummy",
+            "dummy",
+            "dummy",
+        )
 
         fehlermeldung(u'\nFehler in "daten"', repr(err))
-        fehlermeldung(u"Fehler in QKan_Import_from_HE", u"\nFehler bei der Ermittlung der srid: \n" + str(daten))
+        fehlermeldung(
+            "Fehler in QKan_Import_from_HE",
+            "\nFehler bei der Ermittlung der srid: \n" + str(daten),
+        )
 
     # --------------------------------------------------------------------------
     # Datenbankverbindungen schliessen
@@ -1020,29 +1313,59 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
     # --------------------------------------------------------------------------
     # Projektdatei schreiben, falls ausgewählt
 
-    if projectfile is not None and projectfile != u'':
-        templatepath = os.path.join(pluginDirectory('qkan'), u"templates")
-        projecttemplate = os.path.join(templatepath, u"projekt.qgs")
+    if projectfile is not None and projectfile != "":
+        templatepath = os.path.join(pluginDirectory("qkan"), "templates")
+        projecttemplate = os.path.join(templatepath, "projekt.qgs")
         projectpath = os.path.dirname(projectfile)
         if os.path.dirname(database_QKan) == projectpath:
-            datasource = database_QKan.replace(os.path.dirname(database_QKan), u'.')
+            datasource = database_QKan.replace(os.path.dirname(database_QKan), ".")
         else:
             datasource = database_QKan
 
         # Liste der Geotabellen aus QKan, um andere Tabellen von der Bearbeitung auszuschliessen
         # Liste steht in 3 Modulen: tools.k_tools, importdyna.import_from_dyna, importhe.import_from_he
-        tabliste = [u'einleit', u'einzugsgebiete', u'flaechen', u'haltungen', u'linkfl', u'linksw',
-                    u'pumpen', u'schaechte', u'teilgebiete', u'tezg', u'wehre']
+        tabliste = [
+            "einleit",
+            "einzugsgebiete",
+            "flaechen",
+            "haltungen",
+            "linkfl",
+            "linksw",
+            "pumpen",
+            "schaechte",
+            "teilgebiete",
+            "tezg",
+            "wehre",
+        ]
 
         # Liste der QKan-Formulare, um individuell erstellte Formulare von der Bearbeitung auszuschliessen
-        formsliste = ['qkan_abflussparameter.ui', 'qkan_anbindungageb.ui', 'qkan_anbindungeinleit.ui',
-                      'qkan_anbindungflaechen.ui', 'qkan_auslaesse.ui', 'qkan_auslasstypen.ui',
-                      'qkan_aussengebiete.ui', 'qkan_bodenklassen.ui', 'qkan_einleit.ui',
-                      'qkan_einzugsgebiete.ui', 'qkan_entwaesserungsarten.ui', 'qkan_flaechen.ui',
-                      'qkan_haltungen.ui', 'qkan_profildaten.ui', 'qkan_profile.ui', 'qkan_pumpen.ui',
-                      'qkan_pumpentypen.ui', 'qkan_schaechte.ui', 'qkan_simulationsstatus.ui',
-                      'qkan_speicher.ui', 'qkan_speicherkennlinien.ui', 'qkan_swref.ui',
-                      'qkan_teilgebiete.ui', 'qkan_tezg.ui', 'qkan_wehre.ui']
+        formsliste = [
+            "qkan_abflussparameter.ui",
+            "qkan_anbindungageb.ui",
+            "qkan_anbindungeinleit.ui",
+            "qkan_anbindungflaechen.ui",
+            "qkan_auslaesse.ui",
+            "qkan_auslasstypen.ui",
+            "qkan_aussengebiete.ui",
+            "qkan_bodenklassen.ui",
+            "qkan_einleit.ui",
+            "qkan_einzugsgebiete.ui",
+            "qkan_entwaesserungsarten.ui",
+            "qkan_flaechen.ui",
+            "qkan_haltungen.ui",
+            "qkan_profildaten.ui",
+            "qkan_profile.ui",
+            "qkan_pumpen.ui",
+            "qkan_pumpentypen.ui",
+            "qkan_schaechte.ui",
+            "qkan_simulationsstatus.ui",
+            "qkan_speicher.ui",
+            "qkan_speicherkennlinien.ui",
+            "qkan_swref.ui",
+            "qkan_teilgebiete.ui",
+            "qkan_tezg.ui",
+            "qkan_wehre.ui",
+        ]
 
         # Lesen der Projektdatei ------------------------------------------------------------------
         qgsxml = ET.parse(projecttemplate)
@@ -1050,40 +1373,40 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
 
         # Projektionssystem anpassen --------------------------------------------------------------
 
-        for tag_maplayer in root.findall(u".//projectlayers/maplayer"):
-            tag_datasource = tag_maplayer.find(u"./datasource")
+        for tag_maplayer in root.findall(".//projectlayers/maplayer"):
+            tag_datasource = tag_maplayer.find("./datasource")
             tex = tag_datasource.text
             # Nur QKan-Tabellen bearbeiten
-            if tex[tex.index(u'table="') + 7:].split(u'" ')[0] in tabliste:
+            if tex[tex.index(u'table="') + 7 :].split(u'" ')[0] in tabliste:
 
                 # <extend> löschen
-                for tag_extent in tag_maplayer.findall(u"./extent"):
+                for tag_extent in tag_maplayer.findall("./extent"):
                     tag_maplayer.remove(tag_extent)
 
-                for tag_spatialrefsys in tag_maplayer.findall(u"./srs/spatialrefsys"):
+                for tag_spatialrefsys in tag_maplayer.findall("./srs/spatialrefsys"):
                     tag_spatialrefsys.clear()
 
-                    elem = ET.SubElement(tag_spatialrefsys, u'proj4')
+                    elem = ET.SubElement(tag_spatialrefsys, "proj4")
                     elem.text = proj4text
-                    elem = ET.SubElement(tag_spatialrefsys, u'srsid')
-                    elem.text = u'{}'.format(srsid)
-                    elem = ET.SubElement(tag_spatialrefsys, u'srid')
-                    elem.text = u'{}'.format(srid)
-                    elem = ET.SubElement(tag_spatialrefsys, u'authid')
-                    elem.text = u'EPSG: {}'.format(srid)
-                    elem = ET.SubElement(tag_spatialrefsys, u'description')
+                    elem = ET.SubElement(tag_spatialrefsys, "srsid")
+                    elem.text = "{}".format(srsid)
+                    elem = ET.SubElement(tag_spatialrefsys, "srid")
+                    elem.text = "{}".format(srid)
+                    elem = ET.SubElement(tag_spatialrefsys, "authid")
+                    elem.text = "EPSG: {}".format(srid)
+                    elem = ET.SubElement(tag_spatialrefsys, "description")
                     elem.text = description
-                    elem = ET.SubElement(tag_spatialrefsys, u'projectionacronym')
+                    elem = ET.SubElement(tag_spatialrefsys, "projectionacronym")
                     elem.text = projectionacronym
                     if ellipsoidacronym is not None:
-                        elem = ET.SubElement(tag_spatialrefsys, u'ellipsoidacronym')
+                        elem = ET.SubElement(tag_spatialrefsys, "ellipsoidacronym")
                         elem.text = ellipsoidacronym
 
         # Pfad zu Formularen auf plugin-Verzeichnis setzen -----------------------------------------
 
-        formspath = os.path.join(pluginDirectory('qkan'), u"forms")
-        for tag_maplayer in root.findall(u".//projectlayers/maplayer"):
-            tag_editform = tag_maplayer.find(u"./editform")
+        formspath = os.path.join(pluginDirectory("qkan"), "forms")
+        for tag_maplayer in root.findall(".//projectlayers/maplayer"):
+            tag_editform = tag_maplayer.find("./editform")
             if tag_editform.text:
                 dateiname = os.path.basename(tag_editform.text)
                 if dateiname in formsliste:
@@ -1093,79 +1416,82 @@ def importKanaldaten(database_HE, database_QKan, projectfile, epsg,
         # Zoom für Kartenfenster einstellen -------------------------------------------------------
 
         if not isinstance(zoomxmin, (int, float)):
-            zoomxmin = 0.
-            zoomxmax = 100.
-            zoomymin = 0.
-            zoomymax = 100.
+            zoomxmin = 0.0
+            zoomxmax = 100.0
+            zoomymin = 0.0
+            zoomymax = 100.0
 
-        for tag_extent in root.findall(u".//mapcanvas/extent"):
-            elem = tag_extent.find(u"./xmin")
-            elem.text = u'{:.3f}'.format(zoomxmin)
-            elem = tag_extent.find(u"./ymin")
-            elem.text = u'{:.3f}'.format(zoomymin)
-            elem = tag_extent.find(u"./xmax")
-            elem.text = u'{:.3f}'.format(zoomxmax)
-            elem = tag_extent.find(u"./ymax")
-            elem.text = u'{:.3f}'.format(zoomymax)
+        for tag_extent in root.findall(".//mapcanvas/extent"):
+            elem = tag_extent.find("./xmin")
+            elem.text = "{:.3f}".format(zoomxmin)
+            elem = tag_extent.find("./ymin")
+            elem.text = "{:.3f}".format(zoomymin)
+            elem = tag_extent.find("./xmax")
+            elem.text = "{:.3f}".format(zoomxmax)
+            elem = tag_extent.find("./ymax")
+            elem.text = "{:.3f}".format(zoomymax)
 
         # Projektionssystem anpassen --------------------------------------------------------------
 
-        for tag_spatialrefsys in root.findall(u".//projectCrs/spatialrefsys"):
+        for tag_spatialrefsys in root.findall(".//projectCrs/spatialrefsys"):
             tag_spatialrefsys.clear()
 
-            elem = ET.SubElement(tag_spatialrefsys, u'proj4')
+            elem = ET.SubElement(tag_spatialrefsys, "proj4")
             elem.text = proj4text
-            elem = ET.SubElement(tag_spatialrefsys, u'srid')
-            elem.text = u'{}'.format(srid)
-            elem = ET.SubElement(tag_spatialrefsys, u'authid')
-            elem.text = u'EPSG: {}'.format(srid)
-            elem = ET.SubElement(tag_spatialrefsys, u'description')
+            elem = ET.SubElement(tag_spatialrefsys, "srid")
+            elem.text = "{}".format(srid)
+            elem = ET.SubElement(tag_spatialrefsys, "authid")
+            elem.text = "EPSG: {}".format(srid)
+            elem = ET.SubElement(tag_spatialrefsys, "description")
             elem.text = description
-            elem = ET.SubElement(tag_spatialrefsys, u'projectionacronym')
+            elem = ET.SubElement(tag_spatialrefsys, "projectionacronym")
             elem.text = projectionacronym
             if ellipsoidacronym is not None:
-                elem = ET.SubElement(tag_spatialrefsys, u'ellipsoidacronym')
+                elem = ET.SubElement(tag_spatialrefsys, "ellipsoidacronym")
                 elem.text = ellipsoidacronym
 
         # Pfad zur QKan-Datenbank anpassen
 
-        for tag_datasource in root.findall(u".//projectlayers/maplayer/datasource"):
+        for tag_datasource in root.findall(".//projectlayers/maplayer/datasource"):
             text = tag_datasource.text
-            tag_datasource.text = u"dbname='" + datasource + u"' " + text[text.find(u'table='):]
+            tag_datasource.text = (
+                "dbname='" + datasource + "' " + text[text.find("table=") :]
+            )
 
         qgsxml.write(projectfile)  # writing modified project file
-        logger.debug(u'Projektdatei: {}'.format(projectfile))
+        logger.debug("Projektdatei: {}".format(projectfile))
         # logger.debug(u'encoded string: {}'.format(tex))
 
     # ------------------------------------------------------------------------------
     # Abschluss: Ggfs. Protokoll schreiben und Datenbankverbindungen schliessen
 
     # iface.mainWindow().statusBar().clearMessage()
-    # iface.messageBar().pushMessage(u"Information", u"Datenimport ist fertig!", level=QgsMessageBar.INFO)
+    # iface.messageBar().pushMessage("Information", "Datenimport ist fertig!", level=QgsMessageBar.INFO)
     # QgsMessageLog.logMessage(message="\nFertig: Datenimport erfolgreich!", level=Qgis.Info)
 
     # Importiertes Projekt laden
     project = QgsProject.instance()
     # project.read(QFileInfo(projectfile))
-    project.read(projectfile)           # read the new project file
+    project.read(projectfile)  # read the new project file
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Verzeichnis der Testdaten
-pfad = u'C:/FHAC/jupiter/hoettges/team_data/Kanalprogramme/k_qkan/k_heqk/beispiele/linges_deng'
+pfad = "C:/FHAC/jupiter/hoettges/team_data/Kanalprogramme/k_qkan/k_heqk/beispiele/linges_deng"
 
-database_HE = os.path.join(pfad, u'21.04.2017-2pumpen.idbf')
-database_QKan = os.path.join(pfad, u'netz.sqlite')
-projectfile = os.path.join(pfad, u'plan.qgs')
-epsg = u'31466'
+database_HE = os.path.join(pfad, "21.04.2017-2pumpen.idbf")
+database_QKan = os.path.join(pfad, "netz.sqlite")
+projectfile = os.path.join(pfad, "plan.qgs")
+epsg = "31466"
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     importKanaldaten(database_HE, database_QKan, projectfile, epsg)
-elif __name__ == '__console__':
-    # QMessageBox.information(None, u"Info", u"Das Programm wurde aus der QGIS-Konsole aufgerufen")
+elif __name__ == "__console__":
+    # QMessageBox.information(None, "Info", "Das Programm wurde aus der QGIS-Konsole aufgerufen")
     importKanaldaten(database_HE, database_QKan, projectfile, epsg)
-elif __name__ == '__builtin__':
-    # QMessageBox.information(None, u"Info", u"Das Programm wurde aus der QGIS-Toolbox aufgerufen")
+elif __name__ == "__builtin__":
+    # QMessageBox.information(None, "Info", "Das Programm wurde aus der QGIS-Toolbox aufgerufen")
     importKanaldaten(database_HE, database_QKan, projectfile, epsg)
 # else:
-# QMessageBox.information(None, u"Info", u"Die Variable __name__ enthält: {0:s}".format(__name__))
+# QMessageBox.information(None, "Info", "Die Variable __name__ enthält: {0:s}".format(__name__))

@@ -3,8 +3,8 @@
 import logging
 
 from qgis.PyQt.QtCore import QPoint, Qt
-from qgis.PyQt.QtGui import QPainter, QFont, QFontMetrics
-from qgis.PyQt.QtWidgets import QSlider, QStyleOptionSlider, QStyle
+from qgis.PyQt.QtGui import QFont, QFontMetrics, QPainter
+from qgis.PyQt.QtWidgets import QSlider, QStyle, QStyleOptionSlider
 
 from .Enums import SliderMode
 
@@ -47,12 +47,16 @@ class Slider(QSlider):
         slider = QStyleOptionSlider()
         slider.initFrom(self)
         available = st.pixelMetric(QStyle.PM_SliderSpaceAvailable, slider, self)
-        length = st.pixelMetric(QStyle.PM_SliderLength, slider, self) / 2.
+        length = st.pixelMetric(QStyle.PM_SliderLength, slider, self) / 2.0
         p.drawText(self.rect(), Qt.TextDontPrint, "9999")
         font = QFont()
         metrics = QFontMetrics(font)
         l = metrics.width("0x")
-        slider_pos = int(st.sliderPositionFromValue(self.minimum(), self.maximum(), v, available) + length - (l / 3.))
+        slider_pos = int(
+            st.sliderPositionFromValue(self.minimum(), self.maximum(), v, available)
+            + length
+            - (l / 3.0)
+        )
         pos = QPoint(slider_pos, self.rect().bottom())
         p.drawText(pos, "0x")
         v = self.maximum()
@@ -84,9 +88,17 @@ class Slider(QSlider):
         Wird vom MouseReleaseEvent-Listener aufgerufen, falls beim klicken die Strg-Taste gedrückt wurde.
         """
         if self.__mode == SliderMode.Pause:
-            self.__last_mode = SliderMode.Forward if self.__last_mode == SliderMode.Backward else SliderMode.Backward
+            self.__last_mode = (
+                SliderMode.Forward
+                if self.__last_mode == SliderMode.Backward
+                else SliderMode.Backward
+            )
         else:
-            self.__mode = SliderMode.Forward if self.__mode == SliderMode.Backward else SliderMode.Backward
+            self.__mode = (
+                SliderMode.Forward
+                if self.__mode == SliderMode.Backward
+                else SliderMode.Backward
+            )
         self.__update_style()
         self.valueChanged.emit(self.value())
 
@@ -95,12 +107,12 @@ class Slider(QSlider):
         Wird aufgerufen, um die Animation zu pausieren bzw. den Slider visuell als pausiert darzustellen.
         """
         if self.__mode == SliderMode.Pause:
-            self.__log.info(u"Slider ist bereits pausiert und wird unpaused")
+            self.__log.info("Slider ist bereits pausiert und wird unpaused")
             self.__mode = self.__last_mode
         else:
             self.__last_mode = self.__mode
             self.__mode = SliderMode.Pause
-            self.__log.info(u"Slider wurde pausiert")
+            self.__log.info("Slider wurde pausiert")
         self.__update_style()
         self.valueChanged.emit(self.value())
 
@@ -151,7 +163,7 @@ class Slider(QSlider):
                           margin: -2px 0px;
                       } """
         self.setStyleSheet(temp)
-        self.__log.info(u"Slider-Style wurde angepasst")
+        self.__log.info("Slider-Style wurde angepasst")
 
     def reset(self):
         """
@@ -161,8 +173,8 @@ class Slider(QSlider):
         self.set_paused()
         self.__update_style()
         self.setValue(0)
-        self.__log.info(u"Slider wurde zurückgesetzt und pausiert")
-        self.__log.debug(u"Slider-Modus auf vorwärts gesetzt. Value auf 0 gesetzt.")
+        self.__log.info("Slider wurde zurückgesetzt und pausiert")
+        self.__log.debug("Slider-Modus auf vorwärts gesetzt. Value auf 0 gesetzt.")
 
     def get_mode(self):
         """
