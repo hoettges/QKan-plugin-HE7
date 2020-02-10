@@ -81,7 +81,7 @@ def exportKanaldaten(
     :type fangradius:       Float
 
     :mindestflaeche:        Mindestflächengröße bei Einzelflächen und Teilflächenstücken
-    :type mindestflaeche:   Real
+    :type mindestflaeche:   float
 
     :mit_verschneidung:     Flächen werden mit Haltungsflächen verschnitten (abhängig von Attribut "aufteilen")
     :type mit_verschneidung: Boolean

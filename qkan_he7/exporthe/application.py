@@ -574,6 +574,13 @@ class ExportToHE:
         # Haltungsflächen (tezg) berücksichtigen
         self.dlg.cb_regardTezg.setChecked(QKan.config.mit_verschneidung)
 
+        # Mindestflächengröße
+        # Kann über Menü "Optionen" eingegeben werden
+        if 'mindestflaeche' in QKan.config:
+            mindestflaeche = QKan.config['mindestflaeche']
+        else:
+            mindestflaeche = 0.5
+
         self.countselection()
 
         # Formular anzeigen

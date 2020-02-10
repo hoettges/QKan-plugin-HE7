@@ -1433,7 +1433,9 @@ def importKanaldaten(
 
         # Projektionssystem anpassen --------------------------------------------------------------
 
-        for tag_spatialrefsys in root.findall(".//projectCrs/spatialrefsys"):
+        for tag_spatialrefsys in root.findall(
+            ".//projectCrs/spatialrefsys"
+        ):
             tag_spatialrefsys.clear()
 
             elem = ET.SubElement(tag_spatialrefsys, "proj4")
@@ -1483,7 +1485,7 @@ pfad = "C:/FHAC/jupiter/hoettges/team_data/Kanalprogramme/k_qkan/k_heqk/beispiel
 database_HE = os.path.join(pfad, "21.04.2017-2pumpen.idbf")
 database_QKan = os.path.join(pfad, "netz.sqlite")
 projectfile = os.path.join(pfad, "plan.qgs")
-epsg = "31466"
+epsg = 31466
 
 if __name__ == "__main__":
     importKanaldaten(database_HE, database_QKan, projectfile, epsg)
