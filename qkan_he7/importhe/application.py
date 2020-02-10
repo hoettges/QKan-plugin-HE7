@@ -36,7 +36,7 @@ from .results_from_he import importResults
 
 # noinspection PyUnresolvedReferences
 
-LOGGER = logging.getLogger("QKan.importhe.application")
+logger = logging.getLogger("QKan.importhe.application")
 
 
 class ImportFromHE:
@@ -216,7 +216,7 @@ class ImportFromHE:
             database_HE = self.dlg_he.tf_heDB.text()
             database_QKan = self.dlg_he.tf_qkanDB.text()
             projectfile = self.dlg_he.tf_projectFile.text()
-            self.epsg = str(self.dlg_he.qsw_epsg.crs().postgisSrid())
+            self.epsg = self.dlg_he.qsw_epsg.crs().postgisSrid()
 
             # Konfigurationsdaten schreiben
             QKan.config.database.qkan = database_QKan
@@ -227,7 +227,21 @@ class ImportFromHE:
             QKan.config.save()
 
             # Start der Verarbeitung
-            importKanaldaten(database_HE, database_QKan, projectfile, self.epsg)
+
+            # Modulaufruf in Logdatei schreiben
+            logger.debug(f"""QKan-Modul Aufruf
+                importKanaldaten(
+                    "{database_HE}", 
+                    "{database_QKan}", 
+                    "{projectfile}", 
+                    {self.epsg},
+                )""")
+
+            importKanaldaten(
+                database_HE, 
+                database_QKan, 
+                projectfile, 
+                self.epsg)
 
     # Formularfunktionen -------------------------------------------------------
 
@@ -334,6 +348,21 @@ class ImportFromHE:
             QKan.config.save()
 
             # Start der Verarbeitung
+
+            # Modulaufruf in Logdatei schreiben
+            logger.debug(f"""QKan-Modul Aufruf
+                importResults(
+                    "{database_ErgHE}", 
+                    "{database_QKan}", 
+                    {qml_choice}, 
+                    {qml_file_results}, 
+                    {epsg},
+            )""")
+
             importResults(
-                database_ErgHE, database_QKan, qml_choice, qml_file_results, epsg
+                database_ErgHE, 
+                database_QKan, 
+                qml_choice, 
+                qml_file_results, 
+                epsg
             )

@@ -30,6 +30,7 @@ from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_database import versionolder
 from qkan.database.qkan_utils import checknames, fehlermeldung, fortschritt, meldung
+from qkan import enums
 
 # Referenzlisten
 from qkan.database.reflists import abflusstypen
@@ -54,7 +55,6 @@ def exportKanaldaten(
     mindestflaeche=0.5,
     mit_verschneidung=True,
     exportFlaechenHE8=True,
-    datenbanktyp="spatialite",
     check_export={},
 ):
     """Export der Kanaldaten aus einer QKan-SpatiaLite-Datenbank und Schreiben in eine HE-Firebird-Datenbank.
@@ -85,9 +85,6 @@ def exportKanaldaten(
 
     :mit_verschneidung:     Flächen werden mit Haltungsflächen verschnitten (abhängig von Attribut "aufteilen")
     :type mit_verschneidung: Boolean
-
-    :datenbanktyp:          Typ der Datenbank (SpatiaLite, PostGIS)
-    :type datenbanktyp:     String
 
     :check_export:          Liste von Export-Optionen
     :type check_export:     Dictionary
@@ -178,6 +175,8 @@ def exportKanaldaten(
 
     # --------------------------------------------------------------------------------------------
     # Export der Schaechte
+
+    logger.debug(f"""check_export:\n{', '.join(check_export.keys())}\n""")
 
     if check_export["export_schaechte"] or check_export["modify_schaechte"]:
 
@@ -1849,6 +1848,7 @@ def exportKanaldaten(
                     auswahl_a=auswahl_a,
                     case_verschneidung=case_verschneidung,
                     join_verschneidung=join_verschneidung,
+                    expr_verschneidung=expr_verschneidung,
                 )
 
             logger.debug(
@@ -1893,6 +1893,7 @@ def exportKanaldaten(
                 auswahl_c=auswahl_c,
                 case_verschneidung=case_verschneidung,
                 join_verschneidung=join_verschneidung,
+                expr_verschneidung=expr_verschneidung,
             )
             logger.debug("combine_flaechenrw = True")
             logger.debug("Abfrage zum Export der Flächendaten: \n{}".format(sql))
@@ -1922,6 +1923,7 @@ def exportKanaldaten(
                 auswahl_a=auswahl_a,
                 case_verschneidung=case_verschneidung,
                 join_verschneidung=join_verschneidung,
+                expr_verschneidung=expr_verschneidung,
             )
             logger.debug("combine_flaechenrw = False")
             logger.debug("Abfrage zum Export der Flächendaten: \n{}".format(sql))

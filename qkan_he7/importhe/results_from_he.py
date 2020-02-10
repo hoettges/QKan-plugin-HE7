@@ -49,7 +49,6 @@ def importResults(
     qml_choice,
     qmlfileResults,
     epsg=25832,
-    dbtyp="SpatiaLite",
 ):
     """Importiert Simulationsergebnisse aus einer HE-Firebird-Datenbank und schreibt diese in Tabellen
        der QKan-SpatiaLite-Datenbank.
@@ -59,9 +58,6 @@ def importResults(
 
     :database_QKan: Datenbankobjekt, das die Verknüpfung zur QKan-SpatiaLite-Datenbank verwaltet.
     :type database: DBConnection (geerbt von dbapi...)
-
-    :dbtyp:         Typ der Datenbank (SpatiaLite, PostGIS)
-    :type dbtyp:    String
 
     :returns: void
     """
@@ -166,7 +162,7 @@ def importResults(
         uri = QgsDataSourceUri()
         uri.setDatabase(database_QKan)
         uri.setDataSource("", "ResultsSch", "geom")
-        vlayer = QgsVectorLayer(uri.uri(), "Überstau Schächte", "spatialite")
+        vlayer = QgsVectorLayer(uri.uri(), "Überstau Schächte", enums.QKanDBChoice.SPATIALITE.value)
         QgsProject.instance().addMapLayer(vlayer)
 
         # Stilvorlage nach Benutzerwahl laden

@@ -26,7 +26,7 @@ from qgis.core import Qgis, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtWidgets import QFileDialog, QListWidgetItem
 from qgis.utils import pluginDirectory
-from qkan import QKan
+from qkan import QKan, enums
 from qkan.database.dbfunc import DBConnection
 from qkan.database.qkan_utils import (
     fehlermeldung,
@@ -574,13 +574,6 @@ class ExportToHE:
         # Haltungsflächen (tezg) berücksichtigen
         self.dlg.cb_regardTezg.setChecked(QKan.config.mit_verschneidung)
 
-        # Mindestflächengröße
-        # Kann über Menü "Optionen" eingegeben werden
-        if 'mindestflaeche' in QKan.config:
-            mindestflaeche = QKan.config['mindestflaeche']
-        else:
-            mindestflaeche = 0.5
-
         self.countselection()
 
         # Formular anzeigen
@@ -601,7 +594,6 @@ class ExportToHE:
             database_QKan: str = self.dlg.tf_QKanDB.text()
             database_HE: str = self.dlg.tf_heDB_dest.text()
             dbtemplate_HE: str = self.dlg.tf_heDB_template.text()
-            datenbanktyp = "spatialite"
             autokorrektur: bool = self.dlg.cb_autokorrektur.isChecked()
             mit_verschneidung: bool = self.dlg.cb_regardTezg.isChecked()
 
@@ -643,7 +635,6 @@ class ExportToHE:
             # Konfigurationsdaten schreiben
             QKan.config.autokorrektur = autokorrektur
             QKan.config.database.qkan = database_QKan
-            QKan.config.database.type = datenbanktyp
             QKan.config.he.database = database_HE
             QKan.config.he.template = dbtemplate_HE
             QKan.config.mit_verschneidung = mit_verschneidung
@@ -653,6 +644,24 @@ class ExportToHE:
                 setattr(QKan.config.check_export, el, check_export[el])
 
             QKan.config.save()
+
+            # Start der Verarbeitung
+
+            # Modulaufruf in Logdatei schreiben
+            logger.debug(f"""QKan-Modul Aufruf
+                exportKanaldaten(
+                    self.iface,
+                    "{database_HE}",
+                    "{dbtemplate_HE}",
+                    self.dbQK,
+                    {liste_teilgebiete},
+                    {autokorrektur},
+                    {QKan.config.fangradius},
+                    {QKan.config.mindestflaeche},
+                    {mit_verschneidung},
+                    {exportFlaechenHE8},
+                    {check_export},
+                )""")
 
             exportKanaldaten(
                 self.iface,
@@ -664,6 +673,6 @@ class ExportToHE:
                 QKan.config.fangradius,
                 QKan.config.mindestflaeche,
                 mit_verschneidung,
-                datenbanktyp,
+                exportFlaechenHE8,
                 check_export,
             )
