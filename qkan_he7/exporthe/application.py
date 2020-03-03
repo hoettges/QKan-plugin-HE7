@@ -521,6 +521,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (1) "):
+            del dbQK
             return False
 
         sql = """INSERT INTO teilgebiete (tgnam)
@@ -529,6 +530,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (2) "):
+            del dbQK
             return False
 
         sql = """INSERT INTO teilgebiete (tgnam)
@@ -537,6 +539,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (3) "):
+            del dbQK
             return False
 
         self.dbQK.commit()
@@ -549,6 +552,7 @@ class ExportToHE:
         # Abfragen der Tabelle teilgebiete nach Teilgebieten
         sql = 'SELECT "tgnam" FROM "teilgebiete" GROUP BY "tgnam"'
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (4) "):
+            del dbQK
             return False
         daten = self.dbQK.fetchall()
         self.dlg.lw_teilgebiete.clear()
@@ -566,7 +570,9 @@ class ExportToHE:
                 # self.dlg.lw_teilgebiete.setCurrentRow(0)
 
         # Ereignis bei Auswahländerung in Liste Teilgebiete
-        self.countselection()
+        if not self.countselection():
+            del dbQK
+            return False
 
         # Autokorrektur
         self.dlg.cb_autokorrektur.setChecked(QKan.config.autokorrektur)
@@ -574,7 +580,9 @@ class ExportToHE:
         # Haltungsflächen (tezg) berücksichtigen
         self.dlg.cb_regardTezg.setChecked(QKan.config.mit_verschneidung)
 
-        self.countselection()
+        if not self.countselection():
+            del dbQK
+            return False
 
         # Formular anzeigen
 
@@ -663,7 +671,7 @@ class ExportToHE:
                     {check_export},
                 )""")
 
-            exportKanaldaten(
+            if not exportKanaldaten(
                 self.iface,
                 database_HE,
                 dbtemplate_HE,
@@ -675,4 +683,5 @@ class ExportToHE:
                 mit_verschneidung,
                 exportFlaechenHE8,
                 check_export,
-            )
+            ):
+                del dbQK

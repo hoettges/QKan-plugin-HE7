@@ -26,7 +26,6 @@ import time
 
 from qgis.core import Qgis, QgsMessageLog
 from qgis.PyQt.QtWidgets import QProgressBar
-from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_database import versionolder
 from qkan.database.qkan_utils import checknames, fehlermeldung, fortschritt, meldung
@@ -167,7 +166,9 @@ def exportKanaldaten(
     # vergeben werden!!! Ein Grund ist, dass (u.a.?) die Tabelle "tabelleninhalte" mit verschiedenen
     # Tabellen verknuepft ist und dieser ID eindeutig sein muss.
 
-    dbHE.sql("SELECT NEXTID, VERSION FROM ITWH$PROGINFO")
+    if not dbHE.sql("SELECT NEXTID, VERSION FROM ITWH$PROGINFO"):
+        del dbHE
+        return False
     data = dbHE.fetchone()
     nextid = int(data[0]) + 1
     heDBVersion = data[1].split(".")
@@ -277,7 +278,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_schaechte (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -314,12 +315,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_schaechte (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Schaechte eingefuegt".format(nextid - nr0), 0.30)
@@ -436,7 +439,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_speicher (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -480,12 +483,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_speicher (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Speicher eingefuegt".format(nextid - nr0), 0.40)
@@ -544,7 +549,7 @@ def exportKanaldaten(
                         # print(sql)
 
                         if not dbHE.sql(sql, "dbHE: export_speicherkennlinien"):
-                            del dbQK
+                            del dbHE
                             return False
 
             dbHE.commit()
@@ -652,7 +657,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_auslaesse (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -692,12 +697,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_auslaesse (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Auslässe eingefuegt".format(nextid - nr0), 0.40)
@@ -805,7 +812,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_pumpen (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -838,12 +845,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_pumpen (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Pumpen eingefuegt".format(nextid - nr0), 0.40)
@@ -968,7 +977,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_wehre (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -1022,12 +1031,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_wehre (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Wehre eingefuegt".format(nextid - nr0), 0.40)
@@ -1209,7 +1220,7 @@ def exportKanaldaten(
                     )
 
                     if not dbHE.sql(sql, "dbHE: export_haltungen (1)"):
-                        del dbQK
+                        del dbHE
                         return False
 
             # Einfuegen in die Datenbank
@@ -1278,11 +1289,13 @@ def exportKanaldaten(
                     )
 
                     if not dbHE.sql(sql, "dbHE: export_haltungen (2)"):
-                        del dbQK
+                        del dbHE
                         return False
 
                     nextid += 1
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Haltungen eingefuegt".format(nextid - nr0), 0.60)
@@ -1373,7 +1386,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_bodenklassen (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -1403,12 +1416,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_bodenklassen (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Bodenklassen eingefuegt".format(nextid - nr0), 0.62)
@@ -1542,7 +1557,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_abflussparameter (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -1589,12 +1604,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_abflussparameter (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Abflussparameter eingefuegt".format(nextid - nr0), 0.65)
@@ -1652,7 +1669,7 @@ def exportKanaldaten(
             )
 
         if not dbHE.sql(sql, "dbHE: export_regenschreiber (1)"):
-            del dbQK
+            del dbHE
             return False
 
         attr = dbHE.fetchall()
@@ -1697,13 +1714,15 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_regenschreiber (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 logger.debug("In HE folgenden Regenschreiber ergänzt: {}".format(sql))
 
                 nextid += 1
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Regenschreiber eingefuegt".format(nextid - nr0), 0.68)
@@ -1739,7 +1758,6 @@ def exportKanaldaten(
 
         # Vorbereitung flaechen: Falls flnam leer ist, plausibel ergänzen:
         if not checknames(dbQK, "flaechen", "flnam", "f_", autokorrektur):
-            del dbQK
             del dbHE
             return False
 
@@ -1749,6 +1767,7 @@ def exportKanaldaten(
                 "Fehler beim Update der Flächen-Verknüpfungen",
                 "Der logische Cache konnte nicht aktualisiert werden.",
             )
+            return False
 
         # Zu verschneidende zusammen mit nicht zu verschneidene Flächen exportieren
 
@@ -2057,7 +2076,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_flaechenrw (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -2103,12 +2122,14 @@ def exportKanaldaten(
 
                 # logger.debug('Abfrage zum Export der Flächendaten in die ITWH-DB: \n{}'.format(sql))
                 if not dbHE.sql(sql, "dbHE: export_flaechenrw (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Flaechen eingefuegt".format(nextid - nr0), 0.80)
@@ -2360,7 +2381,6 @@ def exportKanaldaten(
         # Vorbereitung einleit: Falls elnam leer ist, plausibel ergänzen:
 
         if not checknames(dbQK, "einleit", "elnam", "e_", autokorrektur):
-            del dbQK
             del dbHE
             return False
 
@@ -2370,6 +2390,7 @@ def exportKanaldaten(
                 "Fehler beim Update der Einzeleinleiter-Verknüpfungen",
                 "Der logische Cache konnte nicht aktualisiert werden.",
             )
+            return False
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
 
@@ -2537,7 +2558,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_einleitdirekt (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -2587,12 +2608,14 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_einleitdirekt (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Einzeleinleiter (direkt) eingefuegt".format(nextid - nr0), 0.95)
@@ -2611,6 +2634,7 @@ def exportKanaldaten(
                 "Fehler beim Update der Außengebiete-Verknüpfungen",
                 "Der logische Cache konnte nicht aktualisiert werden.",
             )
+            return False
 
         # Nur Daten fuer ausgewaehlte Teilgebiete
 
@@ -2696,7 +2720,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_aussengebiete (1)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 sql = """
@@ -2708,7 +2732,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
             # Einfuegen in die Datenbank
@@ -2747,7 +2771,7 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 sql = """
@@ -2761,22 +2785,25 @@ def exportKanaldaten(
                 )
 
                 if not dbHE.sql(sql, "dbHE: export_aussengebiete (2)"):
-                    del dbQK
+                    del dbHE
                     return False
 
                 nextid += 1
 
-        dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid))
+        if not dbHE.sql("UPDATE ITWH$PROGINFO SET NEXTID = {:d}".format(nextid)):
+            del dbHE
+            return False
         dbHE.commit()
 
         fortschritt("{} Aussengebiete eingefuegt".format(nextid - nr0), 0.98)
 
     # Zum Schluss: Schließen der Datenbankverbindungen
 
-    del dbQK
     del dbHE
 
     fortschritt("Ende...", 1)
     progress_bar.setValue(100)
     status_message.setText("Datenexport abgeschlossen.")
     # status_message.setLevel(Qgis.Success)
+
+    return True

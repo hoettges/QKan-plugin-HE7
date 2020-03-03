@@ -78,6 +78,8 @@ def importResults(
         dbname=database_QKan
     )  # Datenbankobjekt der QKan-Datenbank zum Schreiben
     if not dbQK.connected:
+        del dbQK
+        del dbHE
         return None
 
     if dbQK is None:
@@ -115,6 +117,8 @@ def importResults(
 
     for sql in sqllist:
         if not dbQK.sql(sql, "QKan_Import_Results (1)"):
+            del dbQK
+            del dbHE
             return False
 
     # Die folgende Abfrage gilt sowohl bei Einzel- als auch bei Seriensimulationen:
@@ -125,6 +129,8 @@ def importResults(
             ORDER BY KNOTEN"""
 
     if not dbHE.sql(sql, "QKan_Import_Results (4)"):
+        del dbQK
+        del dbHE
         return False
 
     for attr in dbHE.fetchall():
@@ -144,6 +150,8 @@ def importResults(
         )
 
         if not dbQK.sql(sql, "QKan_Import_Results (5)"):
+            del dbQK
+            del dbHE
             return False
 
     sql = """UPDATE ResultsSch
@@ -152,6 +160,8 @@ def importResults(
                 FROM schaechte
                 WHERE schaechte.schnam = ResultsSch.schnam)"""
     if not dbQK.sql(sql, "QKan_Import_Results (6)"):
+        del dbQK
+        del dbHE
         return False
 
     dbQK.commit()

@@ -70,13 +70,13 @@ def importKanaldaten(
             "Fehler in QKan_Import_from_HE",
             "ITWH-Datenbank {:s} wurde nicht gefunden!\nAbbruch!".format(database_HE),
         )
-        return None
+        return False
 
     dbQK = DBConnection(
         dbname=database_QKan, epsg=epsg
     )  # Datenbankobjekt der QKan-Datenbank zum Schreiben
     if not dbQK.connected:
-        return None
+        return False
 
     if dbQK is None:
         fehlermeldung(
@@ -85,7 +85,7 @@ def importKanaldaten(
                 database_QKan
             ),
         )
-        return None
+        return False
 
     # Referenztabellen laden.
 
@@ -93,7 +93,9 @@ def importKanaldaten(
     ref_entwart = {}
     sql = "SELECT he_nr, bezeichnung FROM entwaesserungsarten"
     if not dbQK.sql(sql, "importkanaldaten_he (1)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     daten = dbQK.fetchall()
     for el in daten:
         ref_entwart[el[0]] = el[1]
@@ -102,7 +104,9 @@ def importKanaldaten(
     ref_pumpentyp = {}
     sql = "SELECT he_nr, bezeichnung FROM pumpentypen"
     if not dbQK.sql(sql, "importkanaldaten_he (2)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     daten = dbQK.fetchall()
     for el in daten:
         ref_pumpentyp[el[0]] = el[1]
@@ -111,7 +115,9 @@ def importKanaldaten(
     ref_profil = {}
     sql = "SELECT he_nr, profilnam FROM profile"
     if not dbQK.sql(sql, "importkanaldaten_he (3)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     daten = dbQK.fetchall()
     for el in daten:
         ref_profil[el[0]] = el[1]
@@ -120,7 +126,9 @@ def importKanaldaten(
     ref_auslasstypen = {}
     sql = "SELECT he_nr, bezeichnung FROM auslasstypen"
     if not dbQK.sql(sql, "importkanaldaten_he (4)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     daten = dbQK.fetchall()
     for el in daten:
         ref_auslasstypen[el[0]] = el[1]
@@ -129,7 +137,9 @@ def importKanaldaten(
     ref_simulationsstatus = {}
     sql = "SELECT he_nr, bezeichnung FROM simulationsstatus"
     if not dbQK.sql(sql, "importkanaldaten_he (5)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     daten = dbQK.fetchall()
     for el in daten:
         ref_simulationsstatus[el[0]] = el[1]
@@ -233,7 +243,9 @@ def importKanaldaten(
                 profilnam=profilnam, profiltyp_he=profiltyp_he
             )
             if not dbQK.sql(sql, "importkanaldaten_he (7)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Entwasserungsarten. Hier ist es einfacher als bei den Profilen...
         if entwaesserungsart_he in ref_entwart:
@@ -246,7 +258,9 @@ def importKanaldaten(
             )
             ref_entwart[entwaesserungsart_he] = entwart
             if not dbQK.sql(sql, "importkanaldaten_he (8)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Simstatus-Nr aus HE ersetzten
         if simstat_he in ref_simulationsstatus:
@@ -259,7 +273,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (9)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekt erzeugen
         if QKan.config.database.type == enums.QKanDBChoice.SPATIALITE:
@@ -332,7 +348,9 @@ def importKanaldaten(
             )
 
         if not dbQK.sql(sql, "importkanaldaten_he (10)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
 
     dbQK.commit()
 
@@ -396,7 +414,9 @@ def importKanaldaten(
             )
             entwart = "({:})".format(entwaesserungsart_he)
             if not dbQK.sql(sql, "importkanaldaten_he (12)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Simstatus-Nr aus HE ersetzten
         if simstat_he in ref_simulationsstatus:
@@ -409,7 +429,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (13)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekte erzeugen
 
@@ -452,7 +474,9 @@ def importKanaldaten(
                 geom=geom,
             )
             if not dbQK.sql(sql, "importkanaldaten_he (14)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
         except BaseException as err:
             fehlermeldung("SQL-Fehler", repr(err))
             fehlermeldung(
@@ -516,7 +540,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (16)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekte erzeugen
 
@@ -557,7 +583,9 @@ def importKanaldaten(
         )
 
         if not dbQK.sql(sql, "importkanaldaten_he (17)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
 
     dbQK.commit()
 
@@ -615,7 +643,9 @@ def importKanaldaten(
             )
             ref_auslasstypen[typ_he] = auslasstyp
             if not dbQK.sql(sql, "importkanaldaten_he (19)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Simstatus-Nr aus HE ersetzten
         if simstat_he in ref_simulationsstatus:
@@ -628,7 +658,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (20)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekte erzeugen
 
@@ -668,7 +700,9 @@ def importKanaldaten(
             geom=geom,
         )
         if not dbQK.sql(sql, "importkanaldaten_he (21)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
 
     dbQK.commit()
 
@@ -742,7 +776,9 @@ def importKanaldaten(
             )
             ref_pumpentyp[typ_he] = pumpentyp
             if not dbQK.sql(sql, "importkanaldaten_he (23)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Simstatus-Nr aus HE ersetzten
         if simstat_he in ref_simulationsstatus:
@@ -755,7 +791,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (24)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekt erzeugen
 
@@ -813,7 +851,9 @@ def importKanaldaten(
             )
 
         if not dbQK.sql(sql, "importkanaldaten_he (25)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
@@ -888,7 +928,9 @@ def importKanaldaten(
             )
             ref_simulationsstatus[simstat_he] = simstatus
             if not dbQK.sql(sql, "importkanaldaten_he (27)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         # Geo-Objekt erzeugen
 
@@ -948,7 +990,9 @@ def importKanaldaten(
 
         if ok:
             if not dbQK.sql(sql, "importkanaldaten_he (28)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
@@ -1035,7 +1079,9 @@ def importKanaldaten(
 
         if ok:
             if not dbQK.sql(sql, "importkanaldaten_he (30)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
@@ -1076,7 +1122,9 @@ def importKanaldaten(
         )
 
         if not dbQK.sql(sql, "importkanaldaten_he (32)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
@@ -1117,7 +1165,9 @@ def importKanaldaten(
         )
 
         if not dbQK.sql(sql, "importkanaldaten_he (34)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
     dbQK.commit()
 
     # ------------------------------------------------------------------------------
@@ -1153,7 +1203,9 @@ def importKanaldaten(
     # Zuerst sicherstellen, dass die Datensätze nicht schon vorhanden sind. Falls doch, werden sie überschrieben
     sql = "SELECT apnam FROM abflussparameter"
     if not dbQK.sql(sql, "importkanaldaten_he (36)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
     datqk = [el[0] for el in dbQK.fetchall()]
 
     for attr in daten:
@@ -1183,7 +1235,9 @@ def importKanaldaten(
         if apnam in datqk:
             sql = "DELETE FROM abflussparameter WHERE apnam = '{}'".format(apnam)
             if not dbQK.sql(sql, "importkanaldaten_he (37)"):
-                return None
+                del dbQK
+                del dbHE
+                return False
 
         sql = """INSERT INTO abflussparameter
               ( apnam, anfangsabflussbeiwert, endabflussbeiwert, 
@@ -1208,7 +1262,9 @@ def importKanaldaten(
         )
 
         if not dbQK.sql(sql, "importkanaldaten_he (38)"):
-            return None
+            del dbQK
+            del dbHE
+            return False
     dbQK.commit()
 
     # Schachttypen auswerten
@@ -1247,7 +1303,9 @@ def importKanaldaten(
             WHERE Lower(f_table_name) = Lower('schaechte')
             AND Lower(f_geometry_column) = Lower('geom')"""
     if not dbQK.sql(sql, "importkanaldaten_he (45)"):
-        return None
+        del dbQK
+        del dbHE
+        return False
 
     srid = dbQK.fetchone()[0]
     try:
