@@ -255,7 +255,7 @@ class ExportToHE:
 
     def helpClick(self):
         """Reaktion auf Klick auf Help-Schaltfläche"""
-        helpfile = os.path.join(self.plugin_dir, "..\doc", "exporthe.html")
+        helpfile = os.path.join(self.plugin_dir, "../doc", "exporthe.html")
         os.startfile(helpfile)
 
     def lw_teilgebieteClick(self):
