@@ -37,7 +37,7 @@ from qkan.database.qkan_utils import (
 # noinspection PyUnresolvedReferences
 from . import resources
 from .application_dialog import ExportToHEDialog
-from .k_qkhe import exportKanaldaten
+from .export_to_he7 import exportKanaldaten
 
 # Anbindung an Logging-System (Initialisierung in __init__)
 logger = logging.getLogger("QKan.exporthe.application")

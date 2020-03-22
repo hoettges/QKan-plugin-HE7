@@ -6,7 +6,7 @@
 
   Transfer von Kanaldaten aus einer QKan-Datenbank nach HYSTEM EXTRAN 7.6
 
-  | Dateiname            : k_qkhe.py
+  | Dateiname            : export_to_he7.py
   | Date                 : Februar 2017
   | Copyright            : (C) 2016 by Joerg Hoettges
   | Email                : hoettges@fh-aachen.de
@@ -35,7 +35,7 @@ from qkan import enums
 from qkan.database.reflists import abflusstypen
 from qkan.linkflaechen.updatelinks import updatelinkageb, updatelinkfl, updatelinksw
 
-logger = logging.getLogger("QKan.exporthe.k_qkhe")
+logger = logging.getLogger("QKan.exporthe.export_to_he7")
 
 progress_bar = None
 
@@ -143,19 +143,19 @@ def exportKanaldaten(
     # --------------------------------------------------------------------------------------------------
     # Zur Abschaetzung der voraussichtlichen Laufzeit
 
-    # if not dbQK.sql("SELECT count(*) AS n FROM schaechte", "k_qkhe.laufzeit (1)")
+    # if not dbQK.sql("SELECT count(*) AS n FROM schaechte", "export_to_he7.laufzeit (1)")
     # del dbHE
     # return False
     # anzdata = float(dbQK.fetchone()[0])
     # fortschritt("Anzahl Schächte: {}".format(anzdata))
 
-    # if not dbQK.sql("SELECT count(*) AS n FROM haltungen", "k_qkhe.laufzeit (2)")
+    # if not dbQK.sql("SELECT count(*) AS n FROM haltungen", "export_to_he7.laufzeit (2)")
     # del dbHE
     # return False
     # anzdata += float(dbQK.fetchone()[0])
     # fortschritt("Anzahl Haltungen: {}".format(anzdata))
 
-    # if not dbQK.sql("SELECT count(*) AS n FROM flaechen", "k_qkhe.laufzeit (3)")
+    # if not dbQK.sql("SELECT count(*) AS n FROM flaechen", "export_to_he7.laufzeit (3)")
     # del dbHE
     # return False
     # anzdata += float(dbQK.fetchone()[0]) * 2
@@ -205,7 +205,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_schaechte"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_schaechte"):
             del dbHE
             return False
 
@@ -361,7 +361,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_speicher"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_speicher"):
             del dbHE
             return False
 
@@ -508,7 +508,7 @@ def exportKanaldaten(
                       JOIN schaechte AS sc ON sl.schnam = sc.schnam
                       ORDER BY sc.schnam, sl.wspiegel"""
 
-            if not dbQK.sql(sql, "dbQK: k_qkhe.export_speicherkennlinien"):
+            if not dbQK.sql(sql, "dbQK: export_to_he7.export_speicherkennlinien"):
                 del dbHE
                 return False
 
@@ -586,7 +586,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_auslaesse"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_auslaesse"):
             del dbHE
             return False
 
@@ -745,7 +745,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_pumpen"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_pumpen"):
             del dbHE
             return False
 
@@ -897,7 +897,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_wehre"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_wehre"):
             del dbHE
             return False
 
@@ -1083,7 +1083,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_haltungen"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_haltungen"):
             del dbHE
             return False
 
@@ -1322,7 +1322,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_bodenklassen"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_bodenklassen"):
             del dbHE
             return False
 
@@ -1452,7 +1452,7 @@ def exportKanaldaten(
             auswahl
         )
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_abflussparameter"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_abflussparameter"):
             del dbHE
             return False
 
@@ -1635,7 +1635,7 @@ def exportKanaldaten(
         # Regenschreiber berücksichtigen nicht ausgewählte Teilgebiete
         sql = """SELECT regenschreiber FROM flaechen GROUP BY regenschreiber"""
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_regenschreiber"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_regenschreiber"):
             del dbHE
             return False
 
@@ -1802,7 +1802,7 @@ def exportKanaldaten(
             # Vorbereitung: Leeren der Tabelle "flaechen_he8"
 
             sql = "DELETE FROM flaechen_he8"
-            if not dbQK.sql(sql, "dbQK: k_qkhe.exportFlaechenHE8.delete"):
+            if not dbQK.sql(sql, "dbQK: export_to_he7.exportFlaechenHE8.delete"):
                 del dbHE
                 return False
 
@@ -1874,7 +1874,7 @@ def exportKanaldaten(
                 "Abfrage zum Export der Flächendaten nach HE8: \n{}".format(sql)
             )
 
-            if not dbQK.sql(sql, "dbQK: k_qkhe.export_flaechenhe8"):
+            if not dbQK.sql(sql, "dbQK: export_to_he7.export_flaechenhe8"):
                 del dbHE
                 return False
 
@@ -1947,7 +1947,7 @@ def exportKanaldaten(
             logger.debug("combine_flaechenrw = False")
             logger.debug("Abfrage zum Export der Flächendaten: \n{}".format(sql))
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_flaechenrw (4)"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_flaechenrw (4)"):
             del dbHE
             return False
 
@@ -2042,7 +2042,7 @@ def exportKanaldaten(
                 createdat = time.strftime("%d.%m.%Y %H:%M:%S", createdat_s)
 
             if kommentar == "NULL" or kommentar == "":
-                kommentar = "eingefuegt von k_qkhe"
+                kommentar = "eingefuegt von export_to_he7"
 
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
             if check_export["modify_flaechenrw"]:
@@ -2176,7 +2176,7 @@ def exportKanaldaten(
 
         sql = "SELECT count(*) AS anz FROM einzugsgebiete"
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (1)"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (1)"):
             del dbHE
             return False
 
@@ -2192,7 +2192,7 @@ def exportKanaldaten(
                 (einzugsgebiet <> '')
             """
 
-            if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (2)"):
+            if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (2)"):
                 del dbHE
                 return False
 
@@ -2209,7 +2209,7 @@ def exportKanaldaten(
                     createdat=createdat
                 )
 
-                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (3)"):
+                if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (3)"):
                     del dbHE
                     return False
 
@@ -2219,7 +2219,7 @@ def exportKanaldaten(
                 # Liste der in allen Einwohnerpunkten vorkommenden Einzugsgebiete
                 sql = """SELECT einzugsgebiet FROM einleit WHERE einzugsgebiet is not NULL GROUP BY einzugsgebiet"""
 
-                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (4)"):
+                if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (4)"):
                     del dbHE
                     return False
 
@@ -2235,7 +2235,7 @@ def exportKanaldaten(
                         tgnam=tgb[0], createdat=createdat
                     )
 
-                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (5)"):
+                    if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (5)"):
                         del dbHE
                         return False
 
@@ -2253,7 +2253,7 @@ def exportKanaldaten(
                     WHERE einzugsgebiete.pk IS NULL
                 """
 
-                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (6)"):
+                if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (6)"):
                     del dbHE
                     return False
 
@@ -2273,7 +2273,7 @@ def exportKanaldaten(
                 INNER JOIN einzugsgebiete ON einleit.einzugsgebiet = einzugsgebiete.tgnam
             """
 
-            if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (7)"):
+            if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (7)"):
                 del dbHE
                 return False
 
@@ -2284,7 +2284,7 @@ def exportKanaldaten(
                     # 2.1.1 Es existiert genau ein Einzugsgebiet ---------------------------------------------
                     sql = """UPDATE einleit SET einzugsgebiet = (SELECT tgnam FROM einzugsgebiete GROUP BY tgnam)"""
 
-                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (8)"):
+                    if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (8)"):
                         del dbHE
                         return False
 
@@ -2299,7 +2299,7 @@ def exportKanaldaten(
                           WHERE within(einleit.geom, einzugsgebiete.geom) 
                               and einleit.geom IS NOT NULL and einzugsgebiete.geom IS NOT NULL)"""
 
-                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (9)"):
+                    if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (9)"):
                         del dbHE
                         return False
 
@@ -2316,7 +2316,7 @@ def exportKanaldaten(
                         LEFT JOIN einzugsgebiete ON einleit.einzugsgebiet = einzugsgebiete.tgnam
                         WHERE einzugsgebiete.pk IS NULL
                     """
-                    if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (10)"):
+                    if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (10)"):
                         del dbHE
                         return False
 
@@ -2338,7 +2338,7 @@ def exportKanaldaten(
                     WHERE einzugsgebiete.pk is NULL
                 """
 
-                if not dbQK.sql(sql, "dbQK: k_qkhe.export_einzugsgebiete (11)"):
+                if not dbQK.sql(sql, "dbQK: export_to_he7.export_einzugsgebiete (11)"):
                     del dbHE
                     return False
 
@@ -2478,7 +2478,7 @@ def exportKanaldaten(
 
         logger.debug("\nSQL-4e:\n{}\n".format(sql))
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_einleitdirekt (6)"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_einleitdirekt (6)"):
             del dbHE
             return False
 
@@ -2666,7 +2666,7 @@ def exportKanaldaten(
 
         logger.debug("\nSQL-4e:\n{}\n".format(sql))
 
-        if not dbQK.sql(sql, "dbQK: k_qkhe.export_aussengebiete (6)"):
+        if not dbQK.sql(sql, "dbQK: export_to_he7.export_aussengebiete (6)"):
             del dbHE
             return False
 
