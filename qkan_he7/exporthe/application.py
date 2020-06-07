@@ -342,6 +342,8 @@ class ExportToHE:
         else:
             self.dlg.lf_anzahl_haltungen.setText("0")
 
+        return True
+
     # -------------------------------------------------------------------------
     # Funktion zur Zusammenstellung einer Auswahlliste für eine SQL-Abfrage
 
@@ -521,7 +523,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (1) "):
-            del dbQK
+            del self.dbQK
             return False
 
         sql = """INSERT INTO teilgebiete (tgnam)
@@ -530,7 +532,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (2) "):
-            del dbQK
+            del self.dbQK
             return False
 
         sql = """INSERT INTO teilgebiete (tgnam)
@@ -539,7 +541,7 @@ class ExportToHE:
                 teilgebiet NOT IN (SELECT tgnam FROM teilgebiete)
                 GROUP BY teilgebiet"""
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (3) "):
-            del dbQK
+            del self.dbQK
             return False
 
         self.dbQK.commit()
@@ -552,7 +554,7 @@ class ExportToHE:
         # Abfragen der Tabelle teilgebiete nach Teilgebieten
         sql = 'SELECT "tgnam" FROM "teilgebiete" GROUP BY "tgnam"'
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.run (4) "):
-            del dbQK
+            del self.dbQK
             return False
         daten = self.dbQK.fetchall()
         self.dlg.lw_teilgebiete.clear()
@@ -571,7 +573,8 @@ class ExportToHE:
 
         # Ereignis bei Auswahländerung in Liste Teilgebiete
         if not self.countselection():
-            del dbQK
+            logger.error("Fehler: QKan.ExportToHE.run (1)")
+            del self.dbQK
             return False
 
         # Autokorrektur
@@ -581,7 +584,8 @@ class ExportToHE:
         self.dlg.cb_regardTezg.setChecked(QKan.config.mit_verschneidung)
 
         if not self.countselection():
-            del dbQK
+            logger.error("Fehler: QKan.ExportToHE.run (2)")
+            del self.dbQK
             return False
 
         # Formular anzeigen
@@ -684,4 +688,4 @@ class ExportToHE:
                 exportFlaechenHE8,
                 check_export,
             ):
-                del dbQK
+                del self.dbQK
