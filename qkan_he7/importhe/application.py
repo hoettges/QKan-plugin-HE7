@@ -115,7 +115,7 @@ class ImportFromHE:
         icon_import_path = ":/plugins/qkan/importhe/res/icon_import.png"
         QKan.instance.add_action(
             icon_import_path,
-            text=self.tr("Import aus Hystem-Extran"),
+            text=self.tr("Import aus Hystem-Extran 7"),
             callback=self.run_import,
             parent=self.iface.mainWindow(),
         )
@@ -123,7 +123,7 @@ class ImportFromHE:
         icon_results_path = ":/plugins/qkan/importhe/res/icon_results.png"
         QKan.instance.add_action(
             icon_results_path,
-            text=self.tr("Ergebnisse aus Hystem-Extran einlesen"),
+            text=self.tr("Ergebnisse aus Hystem-Extran 7 einlesen"),
             callback=self.run_results,
             parent=self.iface.mainWindow(),
         )

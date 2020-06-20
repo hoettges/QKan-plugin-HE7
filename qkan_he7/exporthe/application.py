@@ -120,7 +120,7 @@ class ExportToHE:
         icon_path = ":/plugins/qkan/exporthe/icon_qk2he.png"
         QKan.instance.add_action(
             icon_path,
-            text=self.tr("Export to Hystem-Extran"),
+            text=self.tr("Export to Hystem-Extran 7"),
             callback=self.run,
             parent=self.iface.mainWindow(),
         )
