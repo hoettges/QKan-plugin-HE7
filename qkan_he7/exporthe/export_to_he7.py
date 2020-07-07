@@ -1162,7 +1162,7 @@ def exportKanaldaten(
             # Ändern vorhandener Datensätze (geschickterweise vor dem Einfügen!)
             if check_export["modify_haltungen"]:
                 # Profile < 0 werden nicht uebertragen
-                if int(h_profil) > 0:
+                if h_profil == "NULL" or int(h_profil) > 0:
                     sql = """
                       UPDATE ROHR SET
                       SCHACHTOBEN='{schachtoben}', SCHACHTUNTEN='{schachtunten}',
@@ -1226,7 +1226,7 @@ def exportKanaldaten(
             # Einfuegen in die Datenbank
             if check_export["export_haltungen"]:
                 # Profile < 0 werden nicht uebertragen
-                if int(h_profil) > 0:
+                if h_profil == "NULL" or int(h_profil) > 0:
                     sql = """
                       INSERT INTO ROHR
                       ( NAME, SCHACHTOBEN, SCHACHTUNTEN, LAENGE, SOHLHOEHEOBEN,
