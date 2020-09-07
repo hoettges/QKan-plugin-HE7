@@ -37,7 +37,7 @@ from qgis.utils import pluginDirectory
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
 from qkan.database.qkan_utils import evalNodeTypes, fehlermeldung
-from qkan import QKan, enums
+# from qkan import QKan, enums
 from qkan.tools.k_qgsadapt import qgsadapt
 
 logger = logging.getLogger("QKan.importhe.import_from_he")
