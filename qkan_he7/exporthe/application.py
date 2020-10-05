@@ -92,10 +92,23 @@ class ExportToHE:
         self.dlg.pb_exportnone.clicked.connect(self.exportnone)
         self.dlg.pb_modifynone.clicked.connect(self.modifynone)
 
-        self.dlg.lw_teilgebiete.itemClicked.connect(self.countselection)
+        # self.dlg.lw_teilgebiete.itemClicked.connect(self.countselection)
         self.dlg.lw_teilgebiete.itemClicked.connect(self.lw_teilgebieteClick)
         self.dlg.cb_selActive.stateChanged.connect(self.selActiveClick)
         self.dlg.button_box.helpRequested.connect(self.helpClick)
+
+        self.dlg.tf_QKanDB.setText(QKan.config.database.qkan)
+        self.dlg.pb_selectQKanDB.clicked.connect(self.selectFile_QKanDB)
+
+        self.dlg.tf_heDB_dest.setText(QKan.config.he.database)
+        self.dlg.pb_selectHeDB_dest.clicked.connect(self.selectFile_HeDB_dest)
+
+        self.dlg.tf_heDB_template.setText(QKan.config.he.template)
+        self.dlg.pb_selectHeDB_template.clicked.connect(self.selectFile_HeDB_template)
+        self.dlg.pb_selectHeDB_emptytemplate.clicked.connect(
+            self.selectFile_HeDB_emptytemplate
+        )
+
 
         # Ende Eigene Funktionen ---------------------------------------------------
 
@@ -120,7 +133,7 @@ class ExportToHE:
         icon_path = ":/plugins/qkan/exporthe/icon_qk2he.png"
         QKan.instance.add_action(
             icon_path,
-            text=self.tr("Export to Hystem-Extran 7"),
+            text=self.tr("Export nach Hystem-Extran 7"),
             callback=self.run,
             parent=self.iface.mainWindow(),
         )
@@ -299,6 +312,7 @@ class ExportToHE:
         )
 
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.countselection (1)"):
+            del self.dbQK
             return False
         daten = self.dbQK.fetchone()
         if not (daten is None):
@@ -317,6 +331,7 @@ class ExportToHE:
             auswahl=auswahl
         )
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.countselection (2) "):
+            del self.dbQK
             return False
         daten = self.dbQK.fetchone()
         if not (daten is None):
@@ -335,6 +350,7 @@ class ExportToHE:
             auswahl=auswahl
         )
         if not self.dbQK.sql(sql, "QKan_ExportHE.application.countselection (3) "):
+            del self.dbQK
             return False
         daten = self.dbQK.fetchone()
         if not (daten is None):
@@ -362,18 +378,6 @@ class ExportToHE:
 
     def run(self):
         """Run method that performs all the real work"""
-
-        self.dlg.tf_QKanDB.setText(QKan.config.database.qkan)
-        self.dlg.pb_selectQKanDB.clicked.connect(self.selectFile_QKanDB)
-
-        self.dlg.tf_heDB_dest.setText(QKan.config.he.database)
-        self.dlg.pb_selectHeDB_dest.clicked.connect(self.selectFile_HeDB_dest)
-
-        self.dlg.tf_heDB_template.setText(QKan.config.he.template)
-        self.dlg.pb_selectHeDB_template.clicked.connect(self.selectFile_HeDB_template)
-        self.dlg.pb_selectHeDB_emptytemplate.clicked.connect(
-            self.selectFile_HeDB_emptytemplate
-        )
 
         # Auswahl der zu exportierenden Tabellen ----------------------------------------------
 
@@ -688,4 +692,5 @@ class ExportToHE:
                 exportFlaechenHE8,
                 check_export,
             ):
-                del self.dbQK
+                logger.debug("Fehler in qkan_he7.exporthe.run: Aufruf exportKanaldaten(...) fehlgeschlagen")
+            del self.dbQK

@@ -31,6 +31,7 @@ import logging
 import os
 import xml.etree.ElementTree as ET
 
+from pathlib import Path
 from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.PyQt.QtCore import QFileInfo
 from qgis.utils import pluginDirectory
@@ -244,23 +245,11 @@ def importKanaldaten(
         # Datensatz in die QKan-DB schreiben
 
         try:
-            sql = """INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, durchm, druckdicht, entwart, 
-                                        schachttyp, simstatus, kommentar, createdat)
-            VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, {durchm}, {druckdicht}, '{entwart}', 
-                     '{schachttyp}', '{simstatus}', '{kommentar}', '{createdat}')""".format(
-                schnam=schnam,
-                xsch=xsch,
-                ysch=ysch,
-                sohlhoehe=sohlhoehe,
-                deckelhoehe=deckelhoehe,
-                durchm=durchm,
-                druckdicht=druckdicht,
-                entwart=entwart,
-                schachttyp="Schacht",
-                simstatus=simstatus,
-                kommentar=kommentar,
-                createdat=createdat,
-            )
+            sql = f"""INSERT INTO schaechte_data (schnam, xsch, ysch, 
+                        sohlhoehe, deckelhoehe, durchm, druckdicht, entwart, 
+                        schachttyp, simstatus, kommentar, createdat)
+            VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, {durchm}/1000, {druckdicht}, '{entwart}', 
+                     'Schacht', '{simstatus}', '{kommentar}', '{createdat}')"""
             if not dbQK.sql(sql, "importkanaldaten_he (14)"):
                 del dbQK
                 del dbHE
@@ -357,21 +346,10 @@ def importKanaldaten(
 
         # Datensatz in die QKan-DB schreiben
 
-        sql = """INSERT INTO schaechte (schnam, deckelhoehe, sohlhoehe, xsch, ysch, ueberstauflaeche, 
+        sql = f"""INSERT INTO schaechte_data (schnam, xsch, ysch, sohlhoehe, deckelhoehe, ueberstauflaeche, 
                     schachttyp, simstatus, kommentar, createdat)
-            VALUES ('{schnam}', {deckelhoehe}, {sohlhoehe}, {xsch}, {ysch}, {ueberstauflaeche}, 
-                    '{schachttyp}', '{simstatus}', '{kommentar}', '{createdat}')""".format(
-            schnam=schnam,
-            deckelhoehe=deckelhoehe,
-            sohlhoehe=sohlhoehe,
-            xsch=xsch,
-            ysch=ysch,
-            ueberstauflaeche=ueberstauflaeche,
-            schachttyp="Speicher",
-            simstatus=simstatus,
-            kommentar=kommentar,
-            createdat=createdat,
-        )
+            VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, {ueberstauflaeche}, 
+                    'Speicher', '{simstatus}', '{kommentar}', '{createdat}')"""
 
         if not dbQK.sql(sql, "importkanaldaten_he (17)"):
             del dbQK
@@ -478,22 +456,11 @@ def importKanaldaten(
 
         # Datensatz in die QKan-DB schreiben
 
-        sql = """INSERT INTO schaechte (schnam, xsch, ysch, sohlhoehe, deckelhoehe, 
+        sql = f"""INSERT INTO schaechte_data (schnam, xsch, ysch, sohlhoehe, deckelhoehe, 
                     auslasstyp, schachttyp, simstatus, kommentar, createdat)
             VALUES ('{schnam}', {xsch}, {ysch}, {sohlhoehe}, {deckelhoehe}, '{auslasstyp}', 
-                    '{schachttyp}', '{simstatus}', '{kommentar}', 
-                    '{createdat}')""".format(
-            schnam=schnam,
-            xsch=xsch,
-            ysch=ysch,
-            sohlhoehe=sohlhoehe,
-            deckelhoehe=deckelhoehe,
-            auslasstyp=auslasstyp,
-            schachttyp="Auslass",
-            simstatus=simstatus,
-            kommentar=kommentar,
-            createdat=createdat,
-        )
+                    'Auslass', '{simstatus}', '{kommentar}', 
+                    '{createdat}')"""
         if not dbQK.sql(sql, "importkanaldaten_he (21)"):
             del dbQK
             del dbHE
@@ -656,7 +623,7 @@ def importKanaldaten(
         # Datensatz aufbereiten in die QKan-DB schreiben
 
         try:
-            sql = """INSERT INTO haltungen 
+            sql = """INSERT INTO haltungen_data 
                 (haltnam, schoben, schunten, 
                 hoehe, breite, laenge, sohleoben, sohleunten, 
                 deckeloben, deckelunten, teilgebiet, profilnam, entwart, ks, simstatus, kommentar, createdat) VALUES (
@@ -826,7 +793,7 @@ def importKanaldaten(
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
         try:
-            sql = """INSERT INTO pumpen 
+            sql = """INSERT INTO pumpen_data 
                 (pnam, schoben, schunten, pumpentyp, steuersch, einschalthoehe, ausschalthoehe, 
                 simstatus, kommentar, createdat) 
                 VALUES ('{pnam}', '{schoben}', '{schunten}', '{pumpentyp}', '{steuersch}', 
@@ -967,7 +934,7 @@ def importKanaldaten(
         # Datensatz aufbereiten und in die QKan-DB schreiben
 
         try:
-            sql = """INSERT INTO wehre (wnam, schoben, schunten, schwellenhoehe, kammerhoehe,
+            sql = """INSERT INTO wehre_data (wnam, schoben, schunten, schwellenhoehe, kammerhoehe,
                  laenge, uebeiwert, simstatus, kommentar, createdat) 
                  VALUES ('{wnam}', '{schoben}', '{schunten}', {schwellenhoehe},
                 {kammerhoehe}, {laenge}, {uebeiwert}, '{simstatus}', '{kommentar}', 
@@ -1293,6 +1260,10 @@ def importKanaldaten(
     evalNodeTypes(dbQK)  # in qkan.database.qkan_utils
 
     # Projektdatei laden und anpassen
+
+    projecttemplate = (
+        Path(pluginDirectory("qkan")) / "templates" / "Projekt.qgs"
+    )
 
     qgsadapt(
         projecttemplate,

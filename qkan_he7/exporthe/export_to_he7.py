@@ -196,8 +196,8 @@ def exportKanaldaten(
                 schaechte.sohlhoehe AS sohlhoehe,
                 schaechte.durchm AS durchmesser,
                 schaechte.strasse AS strasse,
-                schaechte.xsch AS xsch,
-                schaechte.ysch AS ysch, 
+                x(schaechte.geop) AS xsch,
+                y(schaechte.geop) AS ysch, 
                 schaechte.createdat
             FROM schaechte
             WHERE schaechte.schachttyp = 'Schacht'{}
@@ -351,8 +351,8 @@ def exportKanaldaten(
                 schaechte.sohlhoehe AS sohlhoehe,
                 schaechte.durchm AS durchmesser,
                 schaechte.strasse AS strasse,
-                schaechte.xsch AS xsch,
-                schaechte.ysch AS ysch,
+                x(schaechte.geop) AS xsch,
+                y(schaechte.geop) AS ysch,
                 kommentar AS kommentar,
                 createdat
             FROM schaechte
@@ -576,8 +576,8 @@ def exportKanaldaten(
                 schaechte.deckelhoehe AS deckelhoehe,
                 schaechte.sohlhoehe AS sohlhoehe,
                 schaechte.durchm AS durchmesser,
-                schaechte.xsch AS xsch,
-                schaechte.ysch AS ysch,
+                x(schaechte.geop) AS xsch,
+                y(schaechte.geop) AS ysch,
                 kommentar AS kommentar,
                 createdat
             FROM schaechte
