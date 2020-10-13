@@ -489,8 +489,7 @@ class ExportToHE:
 
         # Übernahme der Quelldatenbank:
         # Wenn ein Projekt geladen ist, wird die Quelldatenbank daraus übernommen.
-        # Wenn dies nicht der Fall ist, wird die Quelldatenbank aus der
-        # json-Datei übernommen.
+        # Andernfalls bricht die Funktion mit einer Fehlermeldung ab.
 
         database_QKan, epsg = get_database_QKan()
         if not database_QKan:
@@ -601,7 +600,7 @@ class ExportToHE:
         # See if OK was pressed
         if result:
 
-            # Abrufen der ausgewählten Elemente in beiden Listen
+            # Abrufen der ausgewählten Elemente
             liste_teilgebiete: list = list(
                 self.listselecteditems(self.dlg.lw_teilgebiete)
             )
