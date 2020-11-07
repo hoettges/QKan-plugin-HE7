@@ -37,7 +37,7 @@ from qgis.PyQt.QtCore import QFileInfo
 from qgis.utils import pluginDirectory
 from qkan.database.dbfunc import DBConnection
 from qkan.database.fbfunc import FBConnection
-from qkan.database.qkan_utils import evalNodeTypes, fehlermeldung
+from qkan.database.qkan_utils import eval_node_types, fehlermeldung
 # from qkan import QKan, enums
 from qkan.tools.k_qgsadapt import qgsadapt
 
@@ -1257,7 +1257,7 @@ def importKanaldaten(
     dbQK.commit()
 
     # Schachttypen auswerten
-    evalNodeTypes(dbQK)  # in qkan.database.qkan_utils
+    eval_node_types(dbQK)  # in qkan.database.qkan_utils
 
     # Projektdatei laden und anpassen
 
